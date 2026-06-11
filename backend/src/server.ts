@@ -4,6 +4,8 @@ import cors from 'cors';
 import { APIResponse } from './types/index.js';
 import { ContentService } from './services/ContentService.js';
 import { DB_ENABLED, pingDb } from './database/db.js';
+import authRoutes from './routes/auth.js';
+import { requireAuth } from './middleware/auth.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,9 +28,13 @@ app.get('/health', async (req: Request, res: Response) => {
   });
 });
 
+// Rotas de autenticação
+app.use('/api/auth', authRoutes);
+
 // Sincroniza o catálogo dos providers para o banco (requer DATABASE_URL).
-// TODO: proteger com auth de admin quando as rotas de auth existirem.
-app.post('/api/admin/sync', async (req: Request, res: Response) => {
+// Protegido por JWT. TODO: restringir a admin quando houver papel/role
+// (hoje basta um usuário autenticado).
+app.post('/api/admin/sync', requireAuth, async (req: Request, res: Response) => {
   try {
     const count = await contentService.syncCatalog();
     res.json({

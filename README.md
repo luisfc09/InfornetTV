@@ -28,13 +28,21 @@ npm run dev            # http://localhost:3001
 
 ### Endpoints
 
-| Método | Rota                     | Descrição                          |
-|--------|--------------------------|------------------------------------|
-| GET    | `/health`                | Health check                       |
-| GET    | `/api/content`           | Catálogo (filtro `?genre=`, `?limit=`) |
-| GET    | `/api/content/search`    | Busca (`?q=`, mín. 2 caracteres)   |
-| GET    | `/api/content/trending`  | Em alta (`?limit=`)                |
-| GET    | `/api/content/:id`       | Detalhe de um título               |
+| Método | Rota                     | Auth | Descrição                          |
+|--------|--------------------------|------|------------------------------------|
+| GET    | `/health`                | —    | Health check (+ estado do DB)      |
+| POST   | `/api/auth/register`     | —    | Cadastro (`email`, `password` ≥8, `cpf?`) → JWT |
+| POST   | `/api/auth/login`        | —    | Login (`email`, `password`) → JWT  |
+| GET    | `/api/auth/me`           | JWT  | Dados do token autenticado         |
+| GET    | `/api/content`           | —    | Catálogo (filtro `?genre=`, `?limit=`) |
+| GET    | `/api/content/search`    | —    | Busca (`?q=`, mín. 2 caracteres)   |
+| GET    | `/api/content/trending`  | —    | Em alta (`?limit=`)                |
+| GET    | `/api/content/:id`       | —    | Detalhe de um título               |
+| POST   | `/api/admin/sync`        | JWT  | Sincroniza catálogo dos providers → DB |
+
+> Auth via `Authorization: Bearer <token>`. Senhas com hash bcrypt; o JWT
+> carrega `user_id`, `email`, `tier`. `/api/admin/sync` hoje exige apenas um
+> usuário autenticado — restringir a admin/role é pendência.
 
 > **Status atual:** o provedor `CDN_TV` retorna dados *mock*. HBO e Paramount
 > estão marcados como `pending` até as credenciais serem liberadas. O schema do
