@@ -3,7 +3,12 @@
 
 import type { APIResponse, AuthResult, Content, ContentList } from '../types';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+// Em produção o backend serve a própria SPA, então a API é same-origin
+// (BASE_URL vazio → caminhos relativos como /api/...). Em dev, aponta ao :3001.
+// VITE_API_URL sobrescreve ambos quando definido (ex.: front e API separados).
+const BASE_URL =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? 'http://localhost:3001' : '');
 const TOKEN_KEY = 'infornet_token';
 
 export function getToken(): string | null {

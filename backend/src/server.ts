@@ -1,11 +1,16 @@
 import './config/env.js'; // DEVE ser o primeiro import — carrega o .env antes de db.ts
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { existsSync } from 'node:fs';
 import { APIResponse } from './types/index.js';
 import { ContentService } from './services/ContentService.js';
 import { DB_ENABLED, pingDb } from './database/db.js';
 import authRoutes from './routes/auth.js';
 import { requireAuth } from './middleware/auth.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -166,6 +171,20 @@ app.get('/api/content/:id', async (req: Request, res: Response) => {
     });
   }
 });
+
+// ── SPA estática ─────────────────────────────────────────────────────────
+// Em produção (deploy de serviço único) o backend serve o build do frontend.
+// dist/server.js -> ../../frontend/dist (na raiz do monorepo).
+const FRONTEND_DIST = join(__dirname, '..', '..', 'frontend', 'dist');
+if (existsSync(FRONTEND_DIST)) {
+  app.use(express.static(FRONTEND_DIST));
+  // Fallback do roteamento client-side: tudo que não for /api volta o index.html.
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(join(FRONTEND_DIST, 'index.html'));
+  });
+  console.log(`🖥️  Servindo SPA de ${FRONTEND_DIST}`);
+}
 
 // Error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
