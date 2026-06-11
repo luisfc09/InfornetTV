@@ -1,10 +1,9 @@
+import './config/env.js'; // DEVE ser o primeiro import — carrega o .env antes de db.ts
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { APIResponse } from './types/index.js';
 import { ContentService } from './services/ContentService.js';
-
-dotenv.config();
+import { DB_ENABLED, pingDb } from './database/db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,8 +18,31 @@ const contentService = new ContentService();
 // ============ ROUTES ============
 
 // Health check
-app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/health', async (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    db: DB_ENABLED ? (await pingDb()) ? 'connected' : 'configured_unreachable' : 'disabled',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Sincroniza o catálogo dos providers para o banco (requer DATABASE_URL).
+// TODO: proteger com auth de admin quando as rotas de auth existirem.
+app.post('/api/admin/sync', async (req: Request, res: Response) => {
+  try {
+    const count = await contentService.syncCatalog();
+    res.json({
+      success: true,
+      data: { synced: count },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: String(error),
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // Get all content
