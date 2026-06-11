@@ -50,4 +50,27 @@ npm run dev            # http://localhost:3001
 
 ## Frontend
 
-A definir (ver `frontend/`).
+App de streaming em **Vite + React + TypeScript**, com player **HLS (hls.js)**,
+roteamento (react-router) e autenticação via JWT (token no `localStorage`).
+Consome a API do `backend`.
+
+### Setup
+
+```bash
+cd frontend
+npm install
+cp .env.example .env    # VITE_API_URL=http://localhost:3001
+npm run dev             # http://localhost:5173
+```
+
+### Telas
+
+- **Home** — hero + fileiras por gênero / "Em alta" (estilo streaming)
+- **Detalhe** (`/title/:id`) — sinopse, elenco, direção, metadados
+- **Player** (`/watch/:id`) — reprodução HLS imersiva (rota protegida por login)
+- **Busca** (`/search?q=`) — grade de resultados
+- **Login / Criar conta** — integra `/api/auth`
+
+> O player usa um stream público de teste quando o catálogo traz URLs mock
+> (`cdn.example.com`), para funcionar em dev. Thumbnails do mock apontam para
+> `via.placeholder.com` — troque por imagens reais (ou provider real) em produção.
