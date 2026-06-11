@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS content (
   hero_image_url VARCHAR,
   imdb_rating FLOAT,
   maturity_rating VARCHAR,
-  cast VARCHAR[],
+  "cast" VARCHAR[], -- "cast" é palavra reservada no Postgres: precisa de aspas
   director VARCHAR,
   provider VARCHAR NOT NULL,
   provider_content_id VARCHAR,

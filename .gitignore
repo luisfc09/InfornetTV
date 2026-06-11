@@ -10,6 +10,9 @@ build/
 .env.local
 .env.*.local
 
+# Segredos locais
+.db-password.txt
+
 # Logs
 *.log
 npm-debug.log*

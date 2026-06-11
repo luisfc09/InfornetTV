@@ -50,7 +50,7 @@ function rowToContent(r: ContentRow): Content {
 
 const SELECT = `
   SELECT id, title, description, genres, release_year, duration, seasons,
-         thumbnail_url, hero_image_url, imdb_rating, maturity_rating, cast,
+         thumbnail_url, hero_image_url, imdb_rating, maturity_rating, "cast",
          director, provider, provider_content_id, is_included, stream_url,
          engagement_score
   FROM content
@@ -62,7 +62,7 @@ export class ContentRepository {
     await query(
       `INSERT INTO content (
          id, title, description, genres, release_year, duration, seasons,
-         thumbnail_url, hero_image_url, imdb_rating, maturity_rating, cast,
+         thumbnail_url, hero_image_url, imdb_rating, maturity_rating, "cast",
          director, provider, provider_content_id, is_included, stream_url,
          engagement_score, updated_at
        ) VALUES (
@@ -79,7 +79,7 @@ export class ContentRepository {
          hero_image_url = EXCLUDED.hero_image_url,
          imdb_rating = EXCLUDED.imdb_rating,
          maturity_rating = EXCLUDED.maturity_rating,
-         cast = EXCLUDED.cast,
+         "cast" = EXCLUDED."cast",
          director = EXCLUDED.director,
          is_included = EXCLUDED.is_included,
          stream_url = EXCLUDED.stream_url,
