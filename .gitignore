@@ -4,6 +4,10 @@ node_modules/
 # Build output
 dist/
 build/
+*.tsbuildinfo
+# Artefatos emitidos pelo tsc -b a partir do vite.config.ts
+frontend/vite.config.js
+frontend/vite.config.d.ts
 
 # Env
 .env
