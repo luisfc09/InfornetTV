@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AdminAuthProvider } from './contexts/AdminAuthContext';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -6,7 +6,12 @@ import { Home } from './pages/Home';
 import { ContentDetail } from './pages/ContentDetail';
 import { Search } from './pages/Search';
 import AdminLogin from './pages/admin/AdminLogin';
+import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import DudaPage from './pages/admin/DudaPage';
+import UsersPage from './pages/admin/UsersPage';
+import ProvidersPage from './pages/admin/ProvidersPage';
+import FinanceiroPage from './pages/admin/FinanceiroPage';
 
 export default function App() {
   const location = useLocation();
@@ -19,11 +24,18 @@ export default function App() {
         {!isAdmin && <Header />}
         <main className="flex-1">
           <Routes>
-            {/* Admin routes */}
+            {/* Admin */}
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="duda" element={<DudaPage />} />
+              <Route path="usuarios" element={<UsersPage />} />
+              <Route path="provedores" element={<ProvidersPage />} />
+              <Route path="financeiro" element={<FinanceiroPage />} />
+            </Route>
 
-            {/* User routes */}
+            {/* App do assinante */}
             <Route path="/" element={<Home />} />
             <Route path="/content/:id" element={<ContentDetail />} />
             <Route path="/search" element={<Search />} />

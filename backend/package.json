@@ -6,7 +6,8 @@
     "dev": "node --loader ts-node/esm src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "migrate": "node --loader ts-node/esm src/database/migrate.ts"
+    "migrate": "node --loader ts-node/esm src/database/migrate.ts",
+    "seed:demo": "node --loader ts-node/esm src/database/seedDemo.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.4",

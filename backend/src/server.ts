@@ -11,6 +11,9 @@ import authRoutes from './routes/auth.js';
 import adminAuthRoutes from './routes/adminAuth.routes.js';
 import adminProvidersRoutes from './routes/adminProviders.routes.js';
 import adminUsersRoutes from './routes/adminUsers.routes.js';
+import adminStatsRoutes from './routes/adminStats.routes.js';
+import adminDudaRoutes from './routes/adminDuda.routes.js';
+import watchRoutes from './routes/watch.routes.js';
 import {
   adminAuthMiddleware,
   requirePermission,
@@ -43,9 +46,14 @@ app.get('/health', async (req: Request, res: Response) => {
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/providers', adminProvidersRoutes);
 app.use('/api/admin/users', adminUsersRoutes);
+app.use('/api/admin/stats', adminStatsRoutes);
+app.use('/api/admin/duda', adminDudaRoutes);
 
 // Rotas de autenticação (usuários do app)
 app.use('/api/auth', authRoutes);
+
+// Consumo do assinante: POST /api/watch/progress + GET /api/recommendations
+app.use('/api', watchRoutes);
 
 // Sincroniza o catálogo dos providers para o banco (requer DATABASE_URL).
 // Agora protegido pelo JWT de ADMIN (não aceita mais token de usuário).
