@@ -34,3 +34,4 @@ yarn-error.log*
 .env.supabase
 .admin-jwt-secret.txt
 .admin-credentials.txt
+supabase/.temp/
