@@ -4,6 +4,7 @@ import { useApi } from '../hooks/useApi';
 import type { Content, ContentList } from '../types';
 import { Hero } from '../components/Hero';
 import { Carousel } from '../components/Carousel';
+import { PartnerStrip } from '../components/PartnerStrip';
 import { HomeSkeleton } from '../components/Skeletons';
 
 const SECTIONS = [
@@ -20,8 +21,11 @@ function pickRange(items: Content[], start: number, end: number): Content[] {
   const slice = items.slice(start, end);
   if (slice.length >= 4) return slice;
   if (!items.length) return [];
-  const target = 10;
-  return Array.from({ length: target }, (_, i) => items[i % items.length]);
+  // Catálogo pequeno: cicla começando em offsets diferentes por seção, para as
+  // fileiras não ficarem idênticas.
+  const n = items.length;
+  const len = Math.min(12, Math.max(8, n));
+  return Array.from({ length: len }, (_, i) => items[(start + i) % n]);
 }
 
 function applyCategory(items: Content[], cat: string | null): Content[] {
@@ -49,7 +53,10 @@ export function Home() {
     );
     const list = applyCategory(all, cat);
     const featured = list.slice(0, 5);
-    const newIds = new Set(all.slice(0, 1).map((i) => i.id)); // só o top engajamento = "novidade"
+    // "Novidade" = lançamentos recentes (2023+).
+    const newIds = new Set(
+      all.filter((i) => i.release_year >= 2023).map((i) => i.id),
+    );
     const rows = SECTIONS.map((s) => ({
       title: s.title,
       items: pickRange(list, s.range[0], s.range[1]),
@@ -70,7 +77,8 @@ export function Home() {
   return (
     <div>
       <Hero items={view.featured} />
-      <div className="-mt-6 sm:-mt-10">
+      <PartnerStrip />
+      <div className="pt-2">
         {view.rows.map((row) => (
           <Carousel
             key={row.title}

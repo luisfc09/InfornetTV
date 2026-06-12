@@ -18,7 +18,7 @@ export function Card({ item, isNew = false }: CardProps) {
                  hover:z-10 hover:scale-105 focus-visible:scale-105
                  sm:w-[150px] lg:w-[200px]"
     >
-      <div className="relative aspect-video">
+      <div className="relative aspect-[2/3]">
         <img
           src={item.thumbnail_url}
           alt={item.title}

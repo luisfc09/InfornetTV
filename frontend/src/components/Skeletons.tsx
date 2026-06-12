@@ -25,7 +25,7 @@ export function CarouselSkeleton() {
         {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
-            className="aspect-video w-[120px] shrink-0 animate-pulse rounded-md bg-neutral-800 sm:w-[150px] lg:w-[200px]"
+            className="aspect-[2/3] w-[120px] shrink-0 animate-pulse rounded-md bg-neutral-800 sm:w-[150px] lg:w-[200px]"
           />
         ))}
       </div>
