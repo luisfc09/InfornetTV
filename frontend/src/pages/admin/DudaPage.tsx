@@ -3,7 +3,23 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useAdminApi } from '../../hooks/useAdminApi';
-import { Sparkles, Play, Loader, Clock, Film } from 'lucide-react';
+import {
+  Sparkles,
+  Play,
+  Loader,
+  Clock,
+  Film,
+  MessageCircle,
+  Copy,
+  Check,
+} from 'lucide-react';
+
+interface ReengagementMessage {
+  user_id: string;
+  email: string;
+  dias_sem_acesso: number;
+  mensagem: string;
+}
 
 interface DudaInsights {
   resumo: { usuarios_monitorados: number; recomendacoes_ativas: number };
@@ -27,6 +43,10 @@ export default function DudaPage() {
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [messages, setMessages] = useState<ReengagementMessage[] | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [msgError, setMsgError] = useState('');
+  const [copied, setCopied] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -39,6 +59,25 @@ export default function DudaPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const generateMessages = async () => {
+    setGenerating(true);
+    setMsgError('');
+    try {
+      const data = await request('/duda/messages', { method: 'POST' });
+      setMessages(data.items);
+    } catch (err) {
+      setMsgError((err as Error).message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyMessage = async (m: ReengagementMessage) => {
+    await navigator.clipboard.writeText(m.mensagem);
+    setCopied(m.user_id);
+    setTimeout(() => setCopied(null), 1500);
+  };
 
   const runDuda = async () => {
     setRunning(true);
@@ -118,6 +157,77 @@ export default function DudaPage() {
                 {insights.resumo.recomendacoes_ativas}
               </p>
             </div>
+          </div>
+
+          {/* Mensagens de reengajamento (IA) */}
+          <div className="mb-6 rounded-lg border border-purple-800/40 bg-purple-950/20 p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                  <MessageCircle className="h-4 w-4 text-purple-400" />
+                  Mensagens de reengajamento (IA)
+                </h3>
+                <p className="text-xs text-gray-400">
+                  A Duda escreve mensagens personalizadas (WhatsApp/push) para
+                  quem está há 3+ dias sem assistir
+                </p>
+              </div>
+              <button
+                onClick={generateMessages}
+                disabled={generating}
+                className="flex items-center gap-2 rounded-lg border border-purple-600/50 bg-purple-900/40 px-4 py-2 text-xs font-bold text-purple-100 transition hover:bg-purple-900/70 disabled:opacity-50"
+              >
+                {generating ? (
+                  <Loader className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                {generating ? 'Escrevendo…' : 'Gerar mensagens'}
+              </button>
+            </div>
+
+            {msgError && (
+              <div className="rounded-lg border border-yellow-700/60 bg-yellow-900/30 p-3 text-xs text-yellow-200">
+                {msgError}
+              </div>
+            )}
+
+            {messages && messages.length === 0 && (
+              <p className="text-xs text-gray-400">
+                Ninguém com 3+ dias de ausência agora — todo mundo engajado. 🎉
+              </p>
+            )}
+
+            {messages && messages.length > 0 && (
+              <div className="grid gap-2">
+                {messages.map((m) => (
+                  <div
+                    key={m.user_id}
+                    className="flex items-start justify-between gap-3 rounded-lg bg-black/30 p-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">
+                        {m.email} · {m.dias_sem_acesso}d ausente
+                      </p>
+                      <p className="mt-1 text-sm text-purple-100">
+                        “{m.mensagem}”
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => copyMessage(m)}
+                      aria-label={`Copiar mensagem para ${m.email}`}
+                      className="shrink-0 rounded-md bg-purple-900/50 p-2 text-purple-200 transition hover:bg-purple-900"
+                    >
+                      {copied === m.user_id ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Por assinante */}

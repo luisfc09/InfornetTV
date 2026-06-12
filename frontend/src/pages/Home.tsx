@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useApi } from '../hooks/useApi';
+import { useApi, BASE_URL } from '../hooks/useApi';
+import { useUserAuth } from '../contexts/UserAuthContext';
 import type { Content, ContentList } from '../types';
 import { Hero } from '../components/Hero';
 import { Carousel } from '../components/Carousel';
@@ -47,6 +48,22 @@ export function Home() {
   const [params] = useSearchParams();
   const cat = params.get('cat');
 
+  // ✨ Duda recomenda: recomendações personalizadas do assinante logado.
+  const { user, token } = useUserAuth();
+  const [dudaRecs, setDudaRecs] = useState<Content[]>([]);
+  useEffect(() => {
+    if (!user || !token) {
+      setDudaRecs([]);
+      return;
+    }
+    fetch(`${BASE_URL}/api/recommendations`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((b) => setDudaRecs(b.success ? (b.data.items as Content[]) : []))
+      .catch(() => setDudaRecs([]));
+  }, [user, token]);
+
   const view = useMemo(() => {
     const all = [...(data?.items ?? [])].sort(
       (a, b) => b.engagement_score - a.engagement_score,
@@ -79,6 +96,13 @@ export function Home() {
       <Hero items={view.featured} />
       <PartnerStrip />
       <div className="pt-2">
+        {dudaRecs.length > 0 && (
+          <Carousel
+            title="✨ Duda recomenda para você"
+            items={dudaRecs}
+            newIds={view.newIds}
+          />
+        )}
         {view.rows.map((row) => (
           <Carousel
             key={row.title}

@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAdminApi } from '../../hooks/useAdminApi';
 import { Edit2, Power, Loader } from 'lucide-react';
+import ProviderEditModal, { type ProviderForm } from './ProviderEditModal';
 
 interface Provider {
   id: string;
   name: string;
   display_name: string;
+  description: string | null;
+  api_base_url: string;
   priority: number;
   is_active: boolean;
 }
@@ -14,6 +17,7 @@ export default function ProvidersTab() {
   const { request, loading } = useAdminApi();
   const [providers, setProviders] = useState<Provider[]>([]);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState<Provider | null>(null);
 
   const loadProviders = useCallback(async () => {
     try {
@@ -27,6 +31,19 @@ export default function ProvidersTab() {
   useEffect(() => {
     loadProviders();
   }, [loadProviders]);
+
+  const saveProvider = async (form: ProviderForm) => {
+    await request(`/providers/${form.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        display_name: form.display_name,
+        description: form.description,
+        api_base_url: form.api_base_url,
+        priority: form.priority,
+      }),
+    });
+    await loadProviders();
+  };
 
   const toggleProvider = async (id: string, isActive: boolean) => {
     try {
@@ -91,6 +108,7 @@ export default function ProvidersTab() {
               </button>
 
               <button
+                onClick={() => setEditing(provider)}
                 aria-label={`Editar ${provider.display_name}`}
                 className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition"
               >
@@ -100,6 +118,14 @@ export default function ProvidersTab() {
           </div>
         ))}
       </div>
+
+      {editing && (
+        <ProviderEditModal
+          provider={editing}
+          onSave={saveProvider}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 }

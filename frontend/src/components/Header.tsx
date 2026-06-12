@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useUserAuth } from '../contexts/UserAuthContext';
 
 const TABS = [
   { label: 'Início', to: '/' },
@@ -13,6 +14,7 @@ const TABS = [
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { user, logout } = useUserAuth();
 
   return (
     <header className="fixed inset-x-0 top-0 z-[1000] h-[60px] bg-gradient-to-b from-black/90 to-black/20 backdrop-blur-sm">
@@ -59,13 +61,32 @@ export function Header() {
             <SearchIcon />
           </button>
 
-          <button
-            type="button"
-            aria-label="Perfil do usuário"
-            className="grid h-8 w-8 place-items-center rounded bg-accent text-sm font-bold text-white"
-          >
-            <UserIcon />
-          </button>
+          {user ? (
+            <div className="flex items-center gap-2">
+              <span
+                className="grid h-8 w-8 place-items-center rounded bg-accent text-sm font-bold text-white"
+                title={user.email}
+              >
+                {user.email[0].toUpperCase()}
+              </span>
+              <button
+                type="button"
+                onClick={logout}
+                className="hidden text-sm font-medium text-muted transition hover:text-white sm:block"
+              >
+                Sair
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              aria-label="Entrar"
+              className="flex items-center gap-2 rounded bg-accent px-3 py-1.5 text-sm font-bold text-white transition hover:bg-accent-hover"
+            >
+              <UserIcon />
+              <span className="hidden sm:inline">Entrar</span>
+            </Link>
+          )}
 
           <button
             type="button"

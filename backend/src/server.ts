@@ -14,6 +14,7 @@ import adminUsersRoutes from './routes/adminUsers.routes.js';
 import adminStatsRoutes from './routes/adminStats.routes.js';
 import adminDudaRoutes from './routes/adminDuda.routes.js';
 import watchRoutes from './routes/watch.routes.js';
+import webhooksRoutes from './routes/webhooks.routes.js';
 import {
   adminAuthMiddleware,
   requirePermission,
@@ -54,6 +55,9 @@ app.use('/api/auth', authRoutes);
 
 // Consumo do assinante: POST /api/watch/progress + GET /api/recommendations
 app.use('/api', watchRoutes);
+
+// Webhooks externos (Asaas billing)
+app.use('/api/webhooks', webhooksRoutes);
 
 // Sincroniza o catálogo dos providers para o banco (requer DATABASE_URL).
 // Agora protegido pelo JWT de ADMIN (não aceita mais token de usuário).

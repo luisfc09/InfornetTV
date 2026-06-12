@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AdminAuthProvider } from './contexts/AdminAuthContext';
+import { UserAuthProvider } from './contexts/UserAuthContext';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
@@ -20,7 +23,8 @@ export default function App() {
 
   return (
     <AdminAuthProvider>
-      <div className="flex min-h-screen flex-col bg-bg">
+      <UserAuthProvider>
+        <div className="flex min-h-screen flex-col bg-bg">
         {!isAdmin && <Header />}
         <main className="flex-1">
           <Routes>
@@ -39,10 +43,13 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/content/:id" element={<ContentDetail />} />
             <Route path="/search" element={<Search />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
           </Routes>
         </main>
-        {!isAdmin && <Footer />}
-      </div>
+          {!isAdmin && <Footer />}
+        </div>
+      </UserAuthProvider>
     </AdminAuthProvider>
   );
 }

@@ -7,9 +7,10 @@
 //   3. grava o top-N na tabela `recommendations` (type 'duda', expira em 7 dias).
 // O app do cliente consome via GET /api/recommendations ("Duda recomenda").
 //
-// Evolução futura: usar LLM (Anthropic) p/ mensagens personalizadas de
-// reengajamento — a base de monitoramento já fica pronta aqui.
+// v2: mensagens de reengajamento personalizadas via Claude (Anthropic) para
+// assinantes "em atenção"/"em risco" — requer ANTHROPIC_API_KEY no ambiente.
 
+import Anthropic from '@anthropic-ai/sdk';
 import { query } from '../database/db.js';
 
 const TOP_N = 5;
@@ -32,6 +33,29 @@ export interface DudaRunResult {
   usuarios_processados: number;
   recomendacoes_geradas: number;
 }
+
+export interface ReengagementMessage {
+  user_id: string;
+  email: string;
+  dias_sem_acesso: number;
+  mensagem: string;
+}
+
+// Modelo pequeno e econômico — mensagens curtas em lote (escolha deliberada
+// de custo; ver tabela de modelos da API).
+const DUDA_MODEL = 'claude-haiku-4-5';
+
+const DUDA_SYSTEM = `Você é a Duda, a assistente de conteúdo da Infornet TV (streaming brasileiro).
+Escreva UMA mensagem curta de reengajamento para WhatsApp/push (máx. 2 frases, até 220 caracteres),
+em português brasileiro, calorosa e pessoal, SEM parecer spam.
+
+Regras:
+- Use o que a pessoa gosta (gêneros/título mais assistido) para personalizar.
+- Mencione UMA recomendação disponível no catálogo, pelo título exato.
+- Não use o nome do e-mail. Não invente promoções, preços ou prazos.
+- Não use saudações genéricas tipo "Olá, tudo bem?". Vá direto ao gancho.
+- 1 emoji no máximo.
+- Responda APENAS com o texto da mensagem, sem aspas nem comentários.`;
 
 export class DudaService {
   /** Recalcula as recomendações de todos os usuários com histórico. */
@@ -99,6 +123,85 @@ export class DudaService {
       usuarios_processados: profiles.size,
       recomendacoes_geradas: total,
     };
+  }
+
+  /**
+   * Gera mensagens de reengajamento (via Claude) para assinantes sem acesso
+   * há mais de `minDays` dias. Lança erro claro se a chave não estiver
+   * configurada — o chamador converte em resposta amigável.
+   */
+  async generateReengagementMessages(
+    minDays = 3,
+  ): Promise<ReengagementMessage[]> {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      const err = new Error(
+        'ANTHROPIC_API_KEY não configurada. Defina no backend/.env (local) e nas variáveis do Railway (produção) para ativar as mensagens da Duda.',
+      );
+      (err as { status?: number } & Error).status = 503;
+      throw err;
+    }
+    const anthropic = new Anthropic(); // lê ANTHROPIC_API_KEY do ambiente
+
+    // Alvos: com histórico, sem acesso há mais de minDays
+    const targets = await query<{
+      id: string;
+      email: string;
+      dias: number;
+      top_title: string | null;
+      generos: string[] | null;
+      recs: string[] | null;
+    }>(
+      `SELECT u.id, u.email,
+              EXTRACT(DAY FROM NOW() - MAX(h.watched_at))::int AS dias,
+              (SELECT c.title FROM user_watch_history h2
+                 JOIN content c ON c.id = h2.content_id
+               WHERE h2.user_id = u.id ORDER BY h2.duration_watched DESC LIMIT 1) AS top_title,
+              (SELECT array_agg(DISTINCT g.genre)
+                 FROM user_watch_history h3 JOIN content c2 ON c2.id = h3.content_id,
+                 LATERAL unnest(c2.genres) AS g(genre)
+               WHERE h3.user_id = u.id) AS generos,
+              (SELECT array_agg(c3.title ORDER BY r.score DESC)
+                 FROM recommendations r JOIN content c3 ON c3.id = r.content_id
+               WHERE r.user_id = u.id AND r.recommendation_type = 'duda'
+                 AND r.expires_at > NOW()) AS recs
+       FROM users u JOIN user_watch_history h ON h.user_id = u.id
+       WHERE u.subscription_active
+       GROUP BY u.id
+       HAVING NOW() - MAX(h.watched_at) > ($1 || ' days')::interval
+       ORDER BY MAX(h.watched_at) ASC`,
+      [minDays],
+    );
+
+    const messages: ReengagementMessage[] = [];
+    for (const t of targets) {
+      const profile = [
+        `Dias sem acessar: ${t.dias}`,
+        `Título mais assistido: ${t.top_title ?? 'desconhecido'}`,
+        `Gêneros favoritos: ${(t.generos ?? []).join(', ') || 'desconhecidos'}`,
+        `Recomendações da Duda no catálogo: ${(t.recs ?? []).slice(0, 3).join(', ') || 'nenhuma'}`,
+      ].join('\n');
+
+      const resp = await anthropic.messages.create({
+        model: DUDA_MODEL,
+        max_tokens: 256, // mensagens deliberadamente curtas
+        system: DUDA_SYSTEM,
+        messages: [{ role: 'user', content: profile }],
+      });
+
+      const text = resp.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join(' ')
+        .trim();
+
+      messages.push({
+        user_id: t.id,
+        email: t.email,
+        dias_sem_acesso: t.dias,
+        mensagem: text,
+      });
+    }
+    return messages;
   }
 
   /** Visão de monitoramento por usuário (insights p/ o Admin Panel). */

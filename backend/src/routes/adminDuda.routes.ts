@@ -35,6 +35,37 @@ router.post(
   },
 );
 
+// POST /api/admin/duda/messages — mensagens de reengajamento via Claude
+// (alvos: assinantes sem acesso > 3 dias). Requer ANTHROPIC_API_KEY.
+router.post(
+  '/messages',
+  adminAuthMiddleware,
+  requirePermission('view_analytics'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const messages = await duda.generateReengagementMessages(3);
+
+      await supabaseAdmin.from('admin_logs').insert({
+        admin_id: req.admin!.id,
+        action: 'duda_messages',
+        resource_type: 'duda',
+        details: { geradas: messages.length },
+      });
+
+      res.json({
+        success: true,
+        data: { items: messages, total: messages.length },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      const status = (error as { status?: number }).status ?? 500;
+      res
+        .status(status)
+        .json({ success: false, error: (error as Error).message });
+    }
+  },
+);
+
 // GET /api/admin/duda/insights — monitoramento por usuário + recomendações
 router.get(
   '/insights',

@@ -198,4 +198,28 @@ router.get(
   },
 );
 
+// GET /api/admin/stats/billing — histórico de cobranças (Asaas)
+router.get(
+  '/billing',
+  adminAuthMiddleware,
+  requirePermission('manage_billing'),
+  async (req: AdminRequest, res: Response) => {
+    try {
+      const items = await query(
+        `SELECT b.id, u.email, b.asaas_charge_id, b.amount::float, b.status,
+                b.due_date, b.paid_at, b.created_at
+         FROM billing_history b JOIN users u ON u.id = b.user_id
+         ORDER BY b.created_at DESC LIMIT 100`,
+      );
+      res.json({
+        success: true,
+        data: { items, total: items.length },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  },
+);
+
 export default router;
