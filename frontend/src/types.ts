@@ -1,5 +1,4 @@
-// Espelha os tipos do backend (backend/src/types/index.ts).
-
+// Espelha o schema de Content do backend InfornetTV.
 export interface Content {
   id: string;
   title: string;
@@ -21,18 +20,9 @@ export interface Content {
   engagement_score: number;
 }
 
-export interface PublicUser {
-  id: string;
-  email: string;
-  cpf?: string;
-  tier: 'free' | 'premium';
-  subscription_active: boolean;
-  subscription_end_date?: string;
-}
-
-export interface AuthResult {
-  token: string;
-  user: PublicUser;
+export interface ContentList {
+  items: Content[];
+  total: number;
 }
 
 export interface APIResponse<T> {
@@ -40,9 +30,4 @@ export interface APIResponse<T> {
   data?: T;
   error?: string;
   timestamp: string;
-}
-
-export interface ContentList {
-  items: Content[];
-  total: number;
 }

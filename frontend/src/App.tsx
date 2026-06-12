@@ -1,38 +1,22 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
-import { Navbar } from './components/Navbar';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { Routes, Route } from 'react-router-dom';
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
-import { Detail } from './pages/Detail';
-import { Watch } from './pages/Watch';
+import { ContentDetail } from './pages/ContentDetail';
 import { Search } from './pages/Search';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
 
 export default function App() {
-  const location = useLocation();
-  // A página de reprodução é imersiva: sem navbar.
-  const hideNav = location.pathname.startsWith('/watch/');
-
   return (
-    <div className="app">
-      {!hideNav && <Navbar />}
-      <main>
+    <div className="flex min-h-screen flex-col bg-bg">
+      <Header />
+      <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/title/:id" element={<Detail />} />
+          <Route path="/content/:id" element={<ContentDetail />} />
           <Route path="/search" element={<Search />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/watch/:id"
-            element={
-              <ProtectedRoute>
-                <Watch />
-              </ProtectedRoute>
-            }
-          />
         </Routes>
       </main>
+      <Footer />
     </div>
   );
 }
