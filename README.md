@@ -38,11 +38,24 @@ npm run dev            # http://localhost:3001
 | GET    | `/api/content/search`    | —    | Busca (`?q=`, mín. 2 caracteres)   |
 | GET    | `/api/content/trending`  | —    | Em alta (`?limit=`)                |
 | GET    | `/api/content/:id`       | —    | Detalhe de um título               |
-| POST   | `/api/admin/sync`        | JWT  | Sincroniza catálogo dos providers → DB |
 
-> Auth via `Authorization: Bearer <token>`. Senhas com hash bcrypt; o JWT
-> carrega `user_id`, `email`, `tier`. `/api/admin/sync` hoje exige apenas um
-> usuário autenticado — restringir a admin/role é pendência.
+**Admin Panel** (JWT próprio, assinado com `ADMIN_JWT_SECRET` — token de
+usuário NÃO vale aqui; toda ação cai em `admin_logs`):
+
+| Método | Rota                              | Permissão          | Descrição |
+|--------|-----------------------------------|--------------------|-----------|
+| POST   | `/api/admin/auth/login`           | —                  | Login do admin → JWT admin |
+| POST   | `/api/admin/auth/change-password` | autenticado        | Troca a própria senha |
+| POST   | `/api/admin/auth/create-admin`    | `manage_admin_users`* | Cria admin/operator |
+| GET    | `/api/admin/providers`            | `manage_providers` | Lista provedores |
+| GET/PUT/DELETE | `/api/admin/providers/:id` | `manage_providers` | Detalhe / atualiza / desativa |
+| GET    | `/api/admin/users`                | `manage_users`     | Lista usuários (paginado) |
+| PUT    | `/api/admin/users/:id/subscription` | `manage_billing` | Ajusta tier/assinatura |
+| DELETE | `/api/admin/users/:id`            | `manage_users`     | Desativa usuário (soft) |
+| POST   | `/api/admin/sync`                 | `manage_providers` | Sincroniza catálogo → DB |
+
+> \* `super_admin` passa por qualquer permissão. Auth via
+> `Authorization: Bearer <token>`; senhas com bcrypt.
 
 > **Status atual:** o provedor `CDN_TV` retorna dados *mock*. HBO e Paramount
 > estão marcados como `pending` até as credenciais serem liberadas. O schema do

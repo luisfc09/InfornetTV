@@ -8,7 +8,13 @@ import { APIResponse } from './types/index.js';
 import { ContentService } from './services/ContentService.js';
 import { DB_ENABLED, pingDb } from './database/db.js';
 import authRoutes from './routes/auth.js';
-import { requireAuth } from './middleware/auth.js';
+import adminAuthRoutes from './routes/adminAuth.routes.js';
+import adminProvidersRoutes from './routes/adminProviders.routes.js';
+import adminUsersRoutes from './routes/adminUsers.routes.js';
+import {
+  adminAuthMiddleware,
+  requirePermission,
+} from './middleware/adminAuth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -33,13 +39,21 @@ app.get('/health', async (req: Request, res: Response) => {
   });
 });
 
-// Rotas de autenticação
+// ── ROTAS ADMIN (JWT próprio — ADMIN_JWT_SECRET) ─────────────────────────
+app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/providers', adminProvidersRoutes);
+app.use('/api/admin/users', adminUsersRoutes);
+
+// Rotas de autenticação (usuários do app)
 app.use('/api/auth', authRoutes);
 
 // Sincroniza o catálogo dos providers para o banco (requer DATABASE_URL).
-// Protegido por JWT. TODO: restringir a admin quando houver papel/role
-// (hoje basta um usuário autenticado).
-app.post('/api/admin/sync', requireAuth, async (req: Request, res: Response) => {
+// Agora protegido pelo JWT de ADMIN (não aceita mais token de usuário).
+app.post(
+  '/api/admin/sync',
+  adminAuthMiddleware,
+  requirePermission('manage_providers'),
+  async (req: Request, res: Response) => {
   try {
     const count = await contentService.syncCatalog();
     res.json({
