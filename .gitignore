@@ -31,3 +31,6 @@ yarn-error.log*
 
 # Segredo de produção
 .jwt-secret-prod.txt
+.env.supabase
+.admin-jwt-secret.txt
+.admin-credentials.txt
