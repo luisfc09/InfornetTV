@@ -1,6 +1,6 @@
 import { Content } from '../types/index.js';
 import { IProvider } from '../adapters/BaseProvider.js';
-import { CDNTVAdapter } from '../adapters/CDNTVAdapter.js';
+import { providerRegistry } from '../adapters/registry.js';
 import { ContentRepository } from '../repositories/ContentRepository.js';
 import { DB_ENABLED } from '../database/db.js';
 
@@ -15,10 +15,10 @@ export class ContentService {
   }
 
   private registerProviders() {
-    this.providers.set('CDN_TV', new CDNTVAdapter());
-    // Adicione outros quando tiver credenciais:
-    // this.providers.set('HBO', new HBOAdapter());
-    // this.providers.set('PARAMOUNT', new ParamountAdapter());
+    // Usa o registry compartilhado (CDN_TV, WATCHTV, PARAMOUNT).
+    for (const [name, adapter] of providerRegistry) {
+      this.providers.set(name, adapter);
+    }
   }
 
   /** True quando há banco configurado E já populado — então as leituras vêm do DB. */

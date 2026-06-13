@@ -9,15 +9,20 @@ import { query } from '../database/db.js';
 
 const router = Router();
 
-const progressSchema = z.object({
-  contentId: z.string().min(1),
-  progressPercentage: z.number().int().min(0).max(100),
-  durationWatched: z.number().int().min(0), // segundos assistidos NESTA sessão
-  completed: z.boolean().optional(),
-  rating: z.number().int().min(1).max(5).optional(),
-});
+// Contrato baseado em POSIÇÃO: o player reporta onde parou (positionSeconds)
+// e a duração total (durationSeconds). duration_watched guarda a posição mais
+// avançada (usada para retomada); progress_percentage e completed derivam dela.
+const progressSchema = z
+  .object({
+    contentId: z.string().min(1),
+    positionSeconds: z.number().min(0),
+    durationSeconds: z.number().positive(),
+  })
+  .refine((d) => d.positionSeconds <= d.durationSeconds, {
+    message: 'positionSeconds não pode exceder durationSeconds',
+  });
 
-// POST /api/watch/progress — upsert do histórico (acumula tempo assistido)
+// POST /api/watch/progress — upsert da posição de exibição
 router.post('/watch/progress', requireAuth, async (req: Request, res: Response) => {
   const parsed = progressSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -26,29 +31,22 @@ router.post('/watch/progress', requireAuth, async (req: Request, res: Response) 
       error: parsed.error.issues.map((i) => i.message).join(' '),
     });
   }
-  const { contentId, progressPercentage, durationWatched, completed, rating } =
-    parsed.data;
+  const { contentId, positionSeconds, durationSeconds } = parsed.data;
+  const pos = Math.round(positionSeconds);
+  const pct = Math.min(100, Math.round((positionSeconds / durationSeconds) * 100));
+  const completed = positionSeconds >= durationSeconds * 0.9;
 
   try {
     await query(
       `INSERT INTO user_watch_history
-         (user_id, content_id, progress_percentage, duration_watched, completed, rating, watched_at)
-       VALUES ($1, $2, $3, $4, COALESCE($5, false), $6, NOW())
+         (user_id, content_id, progress_percentage, duration_watched, completed, watched_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
        ON CONFLICT (user_id, content_id) DO UPDATE SET
          watched_at = NOW(),
          progress_percentage = EXCLUDED.progress_percentage,
-         duration_watched = COALESCE(user_watch_history.duration_watched, 0)
-                            + COALESCE(EXCLUDED.duration_watched, 0),
-         completed = user_watch_history.completed OR EXCLUDED.completed,
-         rating = COALESCE(EXCLUDED.rating, user_watch_history.rating)`,
-      [
-        req.user!.user_id,
-        contentId,
-        progressPercentage,
-        durationWatched,
-        completed ?? false,
-        rating ?? null,
-      ],
+         duration_watched = EXCLUDED.duration_watched, -- "onde parou" (retomada)
+         completed = user_watch_history.completed OR EXCLUDED.completed`,
+      [req.user!.user_id, contentId, pct, pos, completed],
     );
     res.json({ success: true, timestamp: new Date().toISOString() });
   } catch (error) {

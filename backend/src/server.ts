@@ -15,10 +15,12 @@ import adminStatsRoutes from './routes/adminStats.routes.js';
 import adminDudaRoutes from './routes/adminDuda.routes.js';
 import watchRoutes from './routes/watch.routes.js';
 import webhooksRoutes from './routes/webhooks.routes.js';
+import contentRoutes from './routes/content.routes.js';
 import {
   adminAuthMiddleware,
   requirePermission,
 } from './middleware/adminAuth.js';
+import { requireAuth } from './middleware/auth.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -170,33 +172,10 @@ app.get('/api/content/trending', async (req: Request, res: Response) => {
   }
 });
 
-// Get content by ID
-app.get('/api/content/:id', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const content = await contentService.getContentDetail(id);
-
-    if (!content) {
-      return res.status(404).json({
-        success: false,
-        error: 'Content not found',
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    res.json({
-      success: true,
-      data: content,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: String(error),
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
+// Detalhe + playback do assinante (auth JWT de user). Registrado APÓS as rotas
+// públicas literais (lista/search/trending), que continuam abertas para o
+// catálogo da home. Trata GET /api/content/:id e /:id/play.
+app.use('/api/content', requireAuth, contentRoutes);
 
 // ── SPA estática ─────────────────────────────────────────────────────────
 // Em produção (deploy de serviço único) o backend serve o build do frontend.

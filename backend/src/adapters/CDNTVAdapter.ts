@@ -1,5 +1,9 @@
-import { BaseProvider } from './BaseProvider.js';
+import { BaseProvider, PlaybackResult } from './BaseProvider.js';
 import { Content } from '../types/index.js';
+
+// Stream público de teste — garante reprodução real enquanto não temos as URLs
+// dos providers (o catálogo seed é fake).
+const TEST_HLS = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
 
 // Helpers de imagem (TMDB CDN público — pôsteres verificados).
 const poster = (p: string) => `https://image.tmdb.org/t/p/w500${p}`;
@@ -164,5 +168,11 @@ export class CDNTVAdapter extends BaseProvider {
   async getContentDetail(id: string): Promise<Content | null> {
     const catalog = await this.fetchCatalog(100);
     return catalog.find((c) => c.id === id) || null;
+  }
+
+  async resolvePlayback(): Promise<PlaybackResult> {
+    // TODO[provider-real]: trocar pelo stream real do provider (URL assinada + DRM se houver).
+    // Resolver SEMPRE aqui no backend. Credenciais do provider NUNCA vão pro frontend.
+    return { streamUrl: TEST_HLS, drm: null };
   }
 }

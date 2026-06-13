@@ -1,10 +1,32 @@
 import { Content } from '../types/index.js';
 
+// DRM (quando o provider real exigir). null = stream aberto (HLS direto).
+export interface PlaybackDRM {
+  type: 'widevine' | 'fairplay' | 'playready';
+  licenseUrl: string;
+  token?: string;
+}
+
+export interface PlaybackResult {
+  streamUrl: string;
+  drm: null | PlaybackDRM;
+}
+
+// Contexto passado pelo backend ao resolver o playback (nunca vai ao frontend).
+export interface PlaybackContext {
+  userId?: string;
+  tier?: string;
+}
+
 export interface IProvider {
   name: string;
   fetchCatalog(limit?: number): Promise<Content[]>;
   searchContent(query: string): Promise<Content[]>;
   getContentDetail(id: string): Promise<Content | null>;
+  resolvePlayback(
+    providerContentId: string,
+    ctx?: PlaybackContext,
+  ): Promise<PlaybackResult>;
 }
 
 export abstract class BaseProvider implements IProvider {
@@ -13,6 +35,10 @@ export abstract class BaseProvider implements IProvider {
   abstract fetchCatalog(limit?: number): Promise<Content[]>;
   abstract searchContent(query: string): Promise<Content[]>;
   abstract getContentDetail(id: string): Promise<Content | null>;
+  abstract resolvePlayback(
+    providerContentId: string,
+    ctx?: PlaybackContext,
+  ): Promise<PlaybackResult>;
 
   protected normalizeId(title: string, year: number, provider: string): string {
     return `${provider.toLowerCase()}_${title
