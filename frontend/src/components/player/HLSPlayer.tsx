@@ -53,6 +53,7 @@ export function HLSPlayer({
     lastReport.current = 0;
 
     let hls: Hls | null = null;
+    let netRetries = 0; // limita retentativas de rede (stream morto não trava)
     // VOD direto (mp4/mkv) não é HLS — reproduz nativo no <video>.
     const isHls = type === 'hls' || (!type && /\.m3u8(\?|$)/i.test(src));
 
@@ -92,7 +93,13 @@ export function HLSPlayer({
       hls.on(Hls.Events.ERROR, (_evt, data) => {
         if (!data.fatal || !hls) return;
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          hls.startLoad(); // tenta retomar o carregamento
+          if (netRetries < 3) {
+            netRetries += 1;
+            hls.startLoad(); // tenta retomar
+          } else {
+            hls.destroy(); // stream provavelmente offline → erro gracioso
+            setError(true);
+          }
         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
           hls.recoverMediaError();
         } else {

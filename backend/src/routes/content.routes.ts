@@ -28,6 +28,7 @@ interface ContentRow {
   provider_content_id: string | null;
   is_included: boolean | null;
   stream_url: string | null;
+  kind: string | null;
   sp_active: boolean | null;
   sp_priority: number | null;
 }
@@ -37,7 +38,7 @@ async function loadContent(id: string): Promise<ContentRow | null> {
   const rows = await query<ContentRow>(
     `SELECT c.id, c.title, c.description, c.thumbnail_url, c.hero_image_url,
             c.release_year, c.genres, c.duration, c.seasons,
-            c.provider, c.provider_content_id, c.is_included, c.stream_url,
+            c.provider, c.provider_content_id, c.is_included, c.stream_url, c.kind,
             sp.is_active AS sp_active, sp.priority AS sp_priority
      FROM content c
      LEFT JOIN streaming_providers sp ON sp.name = c.provider
@@ -65,7 +66,7 @@ router.get('/:id', async (req: Request, res: Response) => {
         year: c.release_year ?? null,
         genres: c.genres ?? [],
         duration: c.duration ?? null,
-        type: c.seasons ? 'series' : 'movie',
+        type: c.kind === 'live' ? 'live' : c.seasons ? 'series' : 'movie',
         providers: c.sp_active
           ? [
               {
@@ -127,6 +128,10 @@ router.get('/:id/play', async (req: Request, res: Response) => {
         streamUrl = xtreamUrl;
         streamType = ext === 'm3u8' ? 'hls' : 'mp4';
         isXtream = true;
+      } else if (c.stream_url && /^https?:\/\//i.test(c.stream_url)) {
+        // Canal ao vivo (M3U) ou URL completa armazenada — usa direto.
+        streamUrl = c.stream_url;
+        streamType = /\.m3u8($|\?)/i.test(c.stream_url) ? 'hls' : 'mp4';
       } else {
         // Provider mock: stream de teste via adapter.
         const adapter = getProvider(c.provider);
@@ -143,9 +148,12 @@ router.get('/:id/play', async (req: Request, res: Response) => {
       return res.status(502).json({ success: false, error: 'Falha ao resolver stream' });
     }
 
-    // Esconde a URL real atrás do proxy quando há credenciais (Xtream) ou o
-    // upstream é http (mixed-content). Streams https abertos (mock) vão direto.
-    const needsProxy = isXtream || streamUrl.startsWith('http://');
+    // Proxia quando: há credenciais (Xtream), upstream é http (mixed-content),
+    // ou é canal ao vivo (M3U) — neste caso o proxy também resolve CORS, já que
+    // muitos CDNs de canais não liberam cross-origin p/ o hls.js. Mock https
+    // (com CORS) vai direto.
+    const needsProxy =
+      isXtream || streamUrl.startsWith('http://') || c.kind === 'live';
     const finalUrl = needsProxy
       ? `/api/stream/${signStreamUrl(streamUrl, userId)}`
       : streamUrl;

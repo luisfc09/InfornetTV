@@ -4,6 +4,7 @@
 import { query } from '../database/db.js';
 import { encrypt, decrypt } from '../lib/crypto.js';
 import { XtreamClient, XtreamCreds } from '../integrations/xtream.js';
+import { fetchM3U, brandOf, shortHash } from '../integrations/m3u.js';
 import { ContentRepository } from '../repositories/ContentRepository.js';
 import { Content } from '../types/index.js';
 
@@ -17,7 +18,7 @@ interface ProviderRow {
 }
 
 export interface SaveIntegrationInput {
-  type: 'mock' | 'xtream';
+  type: 'mock' | 'xtream' | 'm3u';
   api_base_url?: string;
   username?: string;
   password?: string;
@@ -73,10 +74,36 @@ export class ProviderIntegrationService {
     return { ok: true, type: input.type };
   }
 
-  /** Testa a conexão Xtream e devolve validade da linha. */
+  /** Testa a conexão do provider conforme o tipo. */
   async test(id: string) {
     const p = await loadProvider(id);
-    if ((p.config?.type ?? 'mock') !== 'xtream') {
+    const type = (p.config?.type ?? 'mock') as string;
+
+    if (type === 'm3u') {
+      const url = p.config?.m3u_url as string | undefined;
+      if (!url)
+        throw Object.assign(new Error('Configure a URL do M3U primeiro.'), { status: 400 });
+      let channels;
+      try {
+        channels = await fetchM3U(url);
+      } catch (e) {
+        throw Object.assign(
+          new Error(`Falha ao buscar o M3U: ${(e as Error).message}`),
+          { status: 502 },
+        );
+      }
+      return {
+        ok: channels.length > 0,
+        type: 'm3u',
+        channels: channels.length,
+        message:
+          channels.length > 0
+            ? `${channels.length} canais encontrados na lista.`
+            : 'Lista vazia ou inválida.',
+      };
+    }
+
+    if (type !== 'xtream') {
       return { ok: true, type: 'mock', message: 'Provider em modo mock (stream de teste).' };
     }
     const creds = credsOf(p);
@@ -107,11 +134,15 @@ export class ProviderIntegrationService {
     };
   }
 
-  /** Importa o catálogo VOD do painel para `content`. */
+  /** Importa o catálogo do provider (VOD do Xtream ou canais ao vivo do M3U). */
   async importCatalog(id: string, limit = 200) {
     const p = await loadProvider(id);
-    if ((p.config?.type ?? 'mock') !== 'xtream') {
-      throw Object.assign(new Error('Configure a integração Xtream antes de importar.'), {
+    const type = (p.config?.type ?? 'mock') as string;
+
+    if (type === 'm3u') return this.importM3U(p, limit);
+
+    if (type !== 'xtream') {
+      throw Object.assign(new Error('Configure a integração (Xtream/M3U) antes de importar.'), {
         status: 400,
       });
     }
@@ -155,6 +186,57 @@ export class ProviderIntegrationService {
 
     const imported = await repo.upsertMany(items);
     return { imported, total_no_painel: vods.length, truncado: vods.length > limit };
+  }
+
+  /** Importa canais ao vivo de uma playlist M3U (kind='live'). */
+  private async importM3U(p: ProviderRow, limit: number) {
+    const url = p.config?.m3u_url as string | undefined;
+    if (!url) {
+      throw Object.assign(new Error('Configure a URL do M3U antes de importar.'), {
+        status: 400,
+      });
+    }
+    let channels;
+    try {
+      channels = await fetchM3U(url);
+    } catch (e) {
+      throw Object.assign(
+        new Error(`Falha ao buscar o M3U: ${(e as Error).message}`),
+        { status: 502 },
+      );
+    }
+
+    const slice = channels.slice(0, limit);
+    const items: Content[] = slice.map((ch) => {
+      const pcid = ch.tvgId || shortHash(ch.url);
+      return {
+        id: `${p.name.toLowerCase()}_${pcid}`,
+        title: ch.name,
+        description: '',
+        thumbnail_url: ch.logo,
+        hero_image_url: ch.logo,
+        genres: [brandOf(ch.name, ch.group)], // marca/emissora p/ o menu da TV
+        release_year: 0,
+        duration: undefined,
+        provider: p.name as Content['provider'],
+        provider_content_id: pcid,
+        is_included: true,
+        maturity_rating: '',
+        imdb_rating: undefined,
+        cast: [],
+        director: undefined,
+        stream_url: ch.url, // URL completa do canal (HLS público, sem credenciais)
+        engagement_score: 0.5,
+        kind: 'live',
+      };
+    });
+
+    const imported = await repo.upsertMany(items);
+    return {
+      imported,
+      total_no_painel: channels.length,
+      truncado: channels.length > limit,
+    };
   }
 
   /**

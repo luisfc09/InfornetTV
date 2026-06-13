@@ -141,6 +141,11 @@ CREATE TABLE IF NOT EXISTS content (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Tipo de conteúdo: 'movie' | 'series' | 'live' (TV ao vivo). Default movie;
+-- canais ao vivo (importados via M3U) usam 'live' e ficam fora do catálogo VOD.
+ALTER TABLE content ADD COLUMN IF NOT EXISTS kind VARCHAR DEFAULT 'movie';
+CREATE INDEX IF NOT EXISTS idx_content_kind ON content(kind);
+
 CREATE TABLE IF NOT EXISTS content_providers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   content_id VARCHAR REFERENCES content(id) ON DELETE CASCADE,

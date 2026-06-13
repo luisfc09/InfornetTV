@@ -18,6 +18,7 @@ export interface Content {
   director?: string;
   stream_url?: string; // HLS m3u8 link
   engagement_score: number;
+  kind?: 'movie' | 'series' | 'live';
 }
 
 // User types

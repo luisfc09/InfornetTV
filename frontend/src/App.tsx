@@ -8,6 +8,7 @@ import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
 import { ContentDetail } from './pages/ContentDetail';
 import { Search } from './pages/Search';
+import { TVPage } from './pages/TVPage';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -41,6 +42,7 @@ export default function App() {
 
             {/* App do assinante */}
             <Route path="/" element={<Home />} />
+            <Route path="/tv" element={<TVPage />} />
             <Route path="/content/:id" element={<ContentDetail />} />
             <Route path="/search" element={<Search />} />
             <Route path="/login" element={<Login />} />

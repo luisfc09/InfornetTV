@@ -33,12 +33,13 @@ export default function ProviderIntegrationModal({
   onImported: () => void;
 }) {
   const { request } = useAdminApi();
-  const [type, setType] = useState<'mock' | 'xtream'>(
-    (provider.integration_type as 'mock' | 'xtream') ?? 'mock',
+  const [type, setType] = useState<'mock' | 'xtream' | 'm3u'>(
+    (provider.integration_type as 'mock' | 'xtream' | 'm3u') ?? 'mock',
   );
   const [baseUrl, setBaseUrl] = useState(provider.api_base_url ?? '');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [m3uUrl, setM3uUrl] = useState('');
   const [limit, setLimit] = useState(200);
 
   const [busy, setBusy] = useState<'' | 'save' | 'test' | 'import'>('');
@@ -60,7 +61,7 @@ export default function ProviderIntegrationModal({
           api_base_url: baseUrl,
           username: username || undefined,
           password: password || undefined,
-          config: { import_limit: limit },
+          config: { import_limit: limit, m3u_url: m3uUrl || undefined },
         }),
       });
       setPassword('');
@@ -134,12 +135,29 @@ export default function ProviderIntegrationModal({
           <select
             className={`mt-1 ${input}`}
             value={type}
-            onChange={(e) => setType(e.target.value as 'mock' | 'xtream')}
+            onChange={(e) => setType(e.target.value as 'mock' | 'xtream' | 'm3u')}
           >
             <option value="mock">Mock (stream de teste)</option>
             <option value="xtream">Xtream Codes / IPTV</option>
+            <option value="m3u">Lista M3U (iptv-org / canais ao vivo)</option>
           </select>
         </label>
+
+        {type === 'm3u' && (
+          <label className="mb-4 block text-xs font-medium text-gray-300">
+            URL da lista M3U
+            <input
+              className={`mt-1 ${input}`}
+              placeholder="https://iptv-org.github.io/iptv/countries/br.m3u"
+              value={m3uUrl}
+              onChange={(e) => setM3uUrl(e.target.value)}
+            />
+            <span className="mt-1 block text-[11px] text-gray-500">
+              Importa canais ao vivo (kind=live) para a aba TV. Ex.: iptv-org
+              Brasil.
+            </span>
+          </label>
+        )}
 
         {type === 'xtream' && (
           <>
@@ -222,7 +240,7 @@ export default function ProviderIntegrationModal({
         <div className="flex flex-wrap justify-end gap-2">
           <button
             onClick={runTest}
-            disabled={busy !== '' || type !== 'xtream'}
+            disabled={busy !== '' || type === 'mock'}
             className="flex items-center gap-2 rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-white hover:bg-gray-600 disabled:opacity-50"
           >
             {busy === 'test' ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <PlugZap className="h-3.5 w-3.5" />}
@@ -230,7 +248,7 @@ export default function ProviderIntegrationModal({
           </button>
           <button
             onClick={runImport}
-            disabled={busy !== '' || type !== 'xtream'}
+            disabled={busy !== '' || type === 'mock'}
             className="flex items-center gap-2 rounded-lg bg-gray-700 px-4 py-2 text-sm font-medium text-white hover:bg-gray-600 disabled:opacity-50"
           >
             {busy === 'import' ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}

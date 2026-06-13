@@ -23,6 +23,7 @@ interface ContentRow {
   is_included: boolean | null;
   stream_url: string | null;
   engagement_score: number | null;
+  kind: string | null;
 }
 
 function rowToContent(r: ContentRow): Content {
@@ -45,6 +46,7 @@ function rowToContent(r: ContentRow): Content {
     director: r.director ?? undefined,
     stream_url: r.stream_url ?? undefined,
     engagement_score: r.engagement_score ?? 0.5,
+    kind: (r.kind as Content['kind']) ?? 'movie',
   };
 }
 
@@ -52,9 +54,12 @@ const SELECT = `
   SELECT id, title, description, genres, release_year, duration, seasons,
          thumbnail_url, hero_image_url, imdb_rating, maturity_rating, "cast",
          director, provider, provider_content_id, is_included, stream_url,
-         engagement_score
+         engagement_score, kind
   FROM content
 `;
+
+// Catálogo VOD: exclui canais ao vivo (kind='live').
+const NOT_LIVE = `(kind IS DISTINCT FROM 'live')`;
 
 export class ContentRepository {
   /** Insere/atualiza um item pelo par único (provider, provider_content_id). */
@@ -65,8 +70,9 @@ export class ContentRepository {
          thumbnail_url, hero_image_url, imdb_rating, maturity_rating, "cast",
          director, provider, provider_content_id, is_included, stream_url,
          engagement_score, updated_at
+         , kind
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18, NOW()
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18, NOW(), $19
        )
        ON CONFLICT (provider, provider_content_id) DO UPDATE SET
          title = EXCLUDED.title,
@@ -84,13 +90,14 @@ export class ContentRepository {
          is_included = EXCLUDED.is_included,
          stream_url = EXCLUDED.stream_url,
          engagement_score = EXCLUDED.engagement_score,
+         kind = EXCLUDED.kind,
          updated_at = NOW()`,
       [
         c.id, c.title, c.description, c.genres, c.release_year, c.duration ?? null,
         c.seasons ?? null, c.thumbnail_url, c.hero_image_url, c.imdb_rating ?? null,
         c.maturity_rating, c.cast, c.director ?? null, c.provider,
         c.provider_content_id, c.is_included, c.stream_url ?? null,
-        c.engagement_score,
+        c.engagement_score, c.kind ?? 'movie',
       ],
     );
   }
@@ -104,7 +111,9 @@ export class ContentRepository {
   }
 
   async getAll(): Promise<Content[]> {
-    const rows = await query<ContentRow>(`${SELECT} ORDER BY engagement_score DESC`);
+    const rows = await query<ContentRow>(
+      `${SELECT} WHERE ${NOT_LIVE} ORDER BY engagement_score DESC`,
+    );
     return rows.map(rowToContent);
   }
 
@@ -115,7 +124,7 @@ export class ContentRepository {
 
   async search(q: string): Promise<Content[]> {
     const rows = await query<ContentRow>(
-      `${SELECT} WHERE title ILIKE $1 OR $2 = ANY(genres) ORDER BY engagement_score DESC`,
+      `${SELECT} WHERE ${NOT_LIVE} AND (title ILIKE $1 OR $2 = ANY(genres)) ORDER BY engagement_score DESC`,
       [`%${q}%`, q.toLowerCase()],
     );
     return rows.map(rowToContent);
@@ -123,7 +132,7 @@ export class ContentRepository {
 
   async getByGenre(genre: string): Promise<Content[]> {
     const rows = await query<ContentRow>(
-      `${SELECT} WHERE $1 = ANY(genres) ORDER BY engagement_score DESC`,
+      `${SELECT} WHERE ${NOT_LIVE} AND $1 = ANY(genres) ORDER BY engagement_score DESC`,
       [genre.toLowerCase()],
     );
     return rows.map(rowToContent);
@@ -131,14 +140,17 @@ export class ContentRepository {
 
   async getTrending(limit: number): Promise<Content[]> {
     const rows = await query<ContentRow>(
-      `${SELECT} ORDER BY engagement_score DESC LIMIT $1`,
+      `${SELECT} WHERE ${NOT_LIVE} ORDER BY engagement_score DESC LIMIT $1`,
       [limit],
     );
     return rows.map(rowToContent);
   }
 
+  /** Conta apenas VOD (não-live) — usado pelo ContentService.useDb. */
   async count(): Promise<number> {
-    const rows = await query<{ n: string }>('SELECT COUNT(*)::text AS n FROM content');
+    const rows = await query<{ n: string }>(
+      `SELECT COUNT(*)::text AS n FROM content WHERE ${NOT_LIVE}`,
+    );
     return Number(rows[0]?.n ?? 0);
   }
 }

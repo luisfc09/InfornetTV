@@ -17,6 +17,7 @@ import watchRoutes from './routes/watch.routes.js';
 import webhooksRoutes from './routes/webhooks.routes.js';
 import contentRoutes from './routes/content.routes.js';
 import streamRoutes from './routes/stream.routes.js';
+import tvRoutes from './routes/tv.routes.js';
 import {
   adminAuthMiddleware,
   requirePermission,
@@ -55,6 +56,9 @@ app.use('/api/admin/duda', adminDudaRoutes);
 
 // Rotas de autenticação (usuários do app)
 app.use('/api/auth', authRoutes);
+
+// TV ao vivo (público — listagem de canais agrupados)
+app.use('/api/tv', tvRoutes);
 
 // Proxy de stream (sem requireAuth — token assinado é a credencial)
 app.use('/api/stream', streamRoutes);

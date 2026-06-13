@@ -6,6 +6,7 @@ const TABS = [
   { label: 'Início', to: '/' },
   { label: 'Séries', to: '/?cat=series' },
   { label: 'Filmes', to: '/?cat=filmes' },
+  { label: 'TV', to: '/tv' },
   { label: 'Bombando', to: '/?cat=bombando' },
 ];
 
