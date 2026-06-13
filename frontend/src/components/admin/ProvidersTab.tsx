@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAdminApi } from '../../hooks/useAdminApi';
-import { Edit2, Power, Loader } from 'lucide-react';
+import { Edit2, Power, Loader, PlugZap } from 'lucide-react';
 import ProviderEditModal, { type ProviderForm } from './ProviderEditModal';
+import ProviderIntegrationModal from './ProviderIntegrationModal';
 
 interface Provider {
   id: string;
@@ -11,6 +12,8 @@ interface Provider {
   api_base_url: string;
   priority: number;
   is_active: boolean;
+  integration_type?: string;
+  has_credentials?: boolean;
 }
 
 export default function ProvidersTab() {
@@ -18,6 +21,7 @@ export default function ProvidersTab() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<Provider | null>(null);
+  const [integrating, setIntegrating] = useState<Provider | null>(null);
 
   const loadProviders = useCallback(async () => {
     try {
@@ -86,10 +90,23 @@ export default function ProvidersTab() {
               <p className="text-gray-400 text-sm">
                 Prioridade:{' '}
                 <span className="text-red-400">#{provider.priority}</span>
+                <span className="ml-3 rounded bg-gray-700/70 px-1.5 py-0.5 text-xs uppercase tracking-wide">
+                  {provider.integration_type === 'xtream' ? 'Xtream' : 'Mock'}
+                </span>
+                {provider.has_credentials && (
+                  <span className="ml-1.5 text-xs text-green-400">• conectado</span>
+                )}
               </p>
             </div>
 
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIntegrating(provider)}
+                aria-label={`Integrar ${provider.display_name}`}
+                className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition"
+              >
+                <PlugZap className="w-5 h-5" />
+              </button>
               <button
                 onClick={() => toggleProvider(provider.id, provider.is_active)}
                 disabled={loading}
@@ -124,6 +141,14 @@ export default function ProvidersTab() {
           provider={editing}
           onSave={saveProvider}
           onClose={() => setEditing(null)}
+        />
+      )}
+
+      {integrating && (
+        <ProviderIntegrationModal
+          provider={integrating}
+          onClose={() => setIntegrating(null)}
+          onImported={loadProviders}
         />
       )}
     </div>

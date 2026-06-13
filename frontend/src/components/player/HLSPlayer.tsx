@@ -14,6 +14,8 @@ export interface PlaybackDRM {
 interface HLSPlayerProps {
   src: string;
   drm: null | PlaybackDRM;
+  /** 'hls' (.m3u8) ou 'mp4' (VOD direto, ex.: Xtream). Default infere pela URL. */
+  type?: 'hls' | 'mp4';
   startAt?: number;
   onProgress?: (positionSeconds: number, durationSeconds: number) => void;
   onEnded?: () => void;
@@ -24,6 +26,7 @@ const PROGRESS_INTERVAL_S = 12;
 export function HLSPlayer({
   src,
   drm,
+  type,
   startAt = 0,
   onProgress,
   onEnded,
@@ -50,6 +53,8 @@ export function HLSPlayer({
     lastReport.current = 0;
 
     let hls: Hls | null = null;
+    // VOD direto (mp4/mkv) não é HLS — reproduz nativo no <video>.
+    const isHls = type === 'hls' || (!type && /\.m3u8(\?|$)/i.test(src));
 
     const onLoadedMetadata = () => {
       if (startAt > 0 && startAt < video.duration) {
@@ -74,8 +79,11 @@ export function HLSPlayer({
     video.addEventListener('pause', onPause);
     video.addEventListener('ended', onEndedEvt);
 
-    // Safari / iOS: HLS nativo
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    // VOD direto (mp4/mkv): player nativo
+    if (!isHls) {
+      video.src = src;
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // Safari / iOS: HLS nativo
       video.src = src;
     } else if (Hls.isSupported()) {
       hls = new Hls({ enableWorker: true });
@@ -106,7 +114,7 @@ export function HLSPlayer({
     };
     // reloadKey força reinicialização no "Tentar de novo"
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src, drm, startAt, reloadKey]);
+  }, [src, drm, type, startAt, reloadKey]);
 
   // TODO[EME]: implementar reprodução protegida (Widevine/FairPlay/PlayReady).
   if (drm) {

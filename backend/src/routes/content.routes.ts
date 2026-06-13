@@ -8,8 +8,10 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../database/db.js';
 import { getProvider } from '../adapters/registry.js';
+import { ProviderIntegrationService } from '../services/ProviderIntegrationService.js';
 
 const router = Router();
+const integration = new ProviderIntegrationService();
 
 interface ContentRow {
   id: string;
@@ -24,6 +26,7 @@ interface ContentRow {
   provider: string;
   provider_content_id: string | null;
   is_included: boolean | null;
+  stream_url: string | null;
   sp_active: boolean | null;
   sp_priority: number | null;
 }
@@ -33,7 +36,7 @@ async function loadContent(id: string): Promise<ContentRow | null> {
   const rows = await query<ContentRow>(
     `SELECT c.id, c.title, c.description, c.thumbnail_url, c.hero_image_url,
             c.release_year, c.genres, c.duration, c.seasons,
-            c.provider, c.provider_content_id, c.is_included,
+            c.provider, c.provider_content_id, c.is_included, c.stream_url,
             sp.is_active AS sp_active, sp.priority AS sp_priority
      FROM content c
      LEFT JOIN streaming_providers sp ON sp.name = c.provider
@@ -107,17 +110,31 @@ router.get('/:id/play', async (req: Request, res: Response) => {
         .json({ success: false, error: 'Conteúdo não incluído no seu plano' });
     }
 
-    const adapter = getProvider(c.provider);
-    if (!adapter) {
-      return res.status(502).json({ success: false, error: 'Falha ao resolver stream' });
-    }
-
-    let playback;
+    // Extensão guardada na importação (Xtream); default mp4.
+    const ext = c.stream_url || 'mp4';
+    let streamUrl: string;
+    let streamType: 'hls' | 'mp4' = 'hls';
     try {
-      playback = await adapter.resolvePlayback(c.provider_content_id ?? c.id, {
-        userId,
-        tier: req.user!.tier,
-      });
+      // Provider real (Xtream): URL montada no backend com as credenciais.
+      const xtreamUrl = await integration.xtreamPlaybackUrl(
+        c.provider,
+        c.provider_content_id ?? c.id,
+        ext,
+      );
+      if (xtreamUrl) {
+        streamUrl = xtreamUrl;
+        streamType = ext === 'm3u8' ? 'hls' : 'mp4';
+      } else {
+        // Provider mock: stream de teste via adapter.
+        const adapter = getProvider(c.provider);
+        if (!adapter) throw new Error('sem adapter');
+        const pb = await adapter.resolvePlayback(c.provider_content_id ?? c.id, {
+          userId,
+          tier: req.user!.tier,
+        });
+        streamUrl = pb.streamUrl;
+        streamType = 'hls';
+      }
     } catch {
       // FAIL-CLOSED: nunca devolve URL de fallback
       return res.status(502).json({ success: false, error: 'Falha ao resolver stream' });
@@ -139,9 +156,9 @@ router.get('/:id/play', async (req: Request, res: Response) => {
           duration: c.duration ?? null,
         },
         playback: {
-          type: 'hls',
-          url: playback.streamUrl,
-          drm: playback.drm,
+          type: streamType,
+          url: streamUrl,
+          drm: null,
         },
         resumePositionSeconds: h?.duration_watched ?? 0,
       },
