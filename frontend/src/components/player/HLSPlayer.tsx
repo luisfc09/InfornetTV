@@ -75,10 +75,16 @@ export function HLSPlayer({
       onEnded?.();
     };
 
+    // Se o vídeo não começar a tocar em 12s (canal offline/geo-bloqueado,
+    // manifesto vazio), mostra erro gracioso em vez de tela preta parada.
+    const loadTimer = setTimeout(() => setError(true), 12000);
+    const onPlaying = () => clearTimeout(loadTimer);
+
     video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('pause', onPause);
     video.addEventListener('ended', onEndedEvt);
+    video.addEventListener('playing', onPlaying);
 
     // VOD direto (mp4/mkv): player nativo
     if (!isHls) {
@@ -113,10 +119,12 @@ export function HLSPlayer({
     }
 
     return () => {
+      clearTimeout(loadTimer);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEndedEvt);
+      video.removeEventListener('playing', onPlaying);
       hls?.destroy();
     };
     // reloadKey força reinicialização no "Tentar de novo"
