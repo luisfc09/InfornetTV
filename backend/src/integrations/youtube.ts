@@ -111,18 +111,19 @@ export async function resolveCurrentLiveVideoId(
   // 2) Sem edge (ou edge falhou) → resolve direto (funciona p/ conteúdo aberto).
   try {
     const res = await fetch(
-      `https://www.youtube.com/channel/${channelId}/live`,
+      // hl/gl forçam locale e evitam o muro de consentimento; sem isso, IPs de
+      // datacenter recebem uma página degradada SEM o <link canonical> (testado:
+      // o IP do Fly só passou a resolver com hl=en&gl=US + o consent abaixo).
+      `https://www.youtube.com/channel/${channelId}/live?hl=en&gl=US`,
       {
-        // UA/Accept-Language realistas + cookie de consentimento. IPs de
-        // datacenter (Railway/EUA) recebem o interstitial de consentimento do
-        // YouTube, que esconde o <link canonical> e fazia tudo cair em
-        // "offline" mesmo com a live no ar. O cookie pula esse interstitial.
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
           Cookie:
-            'CONSENT=YES+1; SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjQwMTAyLjA4X3AwGgJlbiACGgYIgKjGrgY',
+            'CONSENT=YES+cb.20210328-17-p0.en+FX+999; SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjQwMTAyLjA4X3AwGgJlbiACGgYIgKjGrgY',
         },
         redirect: 'follow',
       },
