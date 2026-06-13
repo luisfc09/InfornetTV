@@ -24,6 +24,7 @@ interface Playback {
   playback: {
     type: 'hls' | 'mp4' | 'youtube';
     url: string;
+    mode?: 'video' | 'offline';
     drm: null | PlaybackDRM;
   };
   resumePositionSeconds: number;
@@ -133,7 +134,10 @@ export function ContentDetail() {
             ← Voltar
           </button>
           {playback.playback.type === 'youtube' ? (
-            <YouTubePlayer videoId={playback.playback.url} />
+            <YouTubePlayer
+              videoId={playback.playback.url}
+              mode={playback.playback.mode}
+            />
           ) : (
             <HLSPlayer
               src={

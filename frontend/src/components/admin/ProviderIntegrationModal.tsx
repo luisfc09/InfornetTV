@@ -152,16 +152,17 @@ export default function ProviderIntegrationModal({
 
         {type === 'youtube' && (
           <label className="mb-4 block text-xs font-medium text-gray-300">
-            video_id ou URL da live no YouTube
+            Canal (@handle / URL / ID UC…) ou video_id específico
             <input
               className={`mt-1 ${input}`}
-              placeholder="https://youtube.com/watch?v=…  ou  o id de 11 caracteres"
+              placeholder="@CazeTV  ·  UCZiYbVptd3PVPf4f6eR6UaQ  ·  ou um video_id"
               value={videoId}
               onChange={(e) => setVideoId(e.target.value)}
             />
             <span className="mt-1 block text-[11px] text-gray-500">
-              Atualize aqui sempre que uma nova transmissão começar. Salve e
-              clique em Importar para criar/atualizar o canal.
+              Recomendado: informe o <b>canal</b> (ex.: @CazeTV) — a live atual
+              toca sozinha e atualiza quando começa uma nova transmissão, sem
+              reconfigurar. Salve e clique em Importar.
             </span>
           </label>
         )}

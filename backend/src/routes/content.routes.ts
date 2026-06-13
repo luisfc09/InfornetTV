@@ -118,9 +118,9 @@ router.get('/:id/play', async (req: Request, res: Response) => {
     let streamType: 'hls' | 'mp4' | 'youtube' = 'hls';
     let isXtream = false;
 
-    // YouTube (ex.: CazéTV): resolve o video_id atual e retorna p/ iframe.
-    const ytId = await integration.youtubeVideoId(c.provider);
-    if (ytId) {
+    // YouTube (ex.: CazéTV): canal (live automática) ou video_id → iframe.
+    const yt = await integration.youtubePlayback(c.provider);
+    if (yt) {
       return res.json({
         success: true,
         data: {
@@ -130,7 +130,7 @@ router.get('/:id/play', async (req: Request, res: Response) => {
             poster_url: c.thumbnail_url ?? '',
             duration: c.duration ?? null,
           },
-          playback: { type: 'youtube', url: ytId, drm: null },
+          playback: { type: 'youtube', url: yt.id, mode: yt.mode, drm: null },
           resumePositionSeconds: 0,
         },
         timestamp: new Date().toISOString(),
