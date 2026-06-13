@@ -25,33 +25,31 @@ export function TVPage() {
   const { data, loading, error } = useApi<TVData>('/api/tv');
   const [active, setActive] = useState<string | null>(null);
 
-  // Provedores nomeados (marcas) vêm primeiro; depois categorias por nº de canais.
-  const FEATURED = [
-    'CazéTV',
-    'Pluto TV',
-    'Globo',
-    'GloboNews',
-    'SporTV',
-    'SBT',
-    'Band',
-    'BandNews',
-    'Record',
-    'RecordNews',
-    'CNN Brasil',
-    'TV Cultura',
-    'RedeTV!',
-    'TV Gazeta',
+  // Menu enxuto: "Geral" agrega TODOS os canais (acesso fácil) + atalhos por
+  // marca. Uma marca só vira aba se tiver ≥1 canal no catálogo — nada de aba
+  // vazia. As que ainda não têm canal (Band, CNN, CDN TV…) acendem sozinhas
+  // assim que importarmos esses canais de um provedor.
+  const BRANDS: { name: string; kw: string[] }[] = [
+    { name: 'CazéTV', kw: ['caz'] },
+    { name: 'Globo', kw: ['globo', 'gloob', 'sportv', 'multishow', 'gnt', 'viva', 'premiere'] },
+    { name: 'SBT', kw: ['sbt'] },
+    { name: 'Band', kw: ['band'] },
+    { name: 'CNN', kw: ['cnn'] },
+    { name: 'CDN TV', kw: ['cdn'] },
+    { name: 'Record', kw: ['record'] },
+    { name: 'Jovem Pan', kw: ['jovem pan', 'jp news'] },
+    { name: 'Pluto TV', kw: ['pluto'] },
   ];
   const groups = useMemo(() => {
-    const list = [...(data?.groups ?? [])];
-    return list.sort((a, b) => {
-      const ia = FEATURED.indexOf(a.name);
-      const ib = FEATURED.indexOf(b.name);
-      if (ia !== -1 || ib !== -1) {
-        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-      }
-      return b.count - a.count;
-    });
+    const all = (data?.groups ?? []).flatMap((g) => g.channels);
+    const menu: Group[] = [{ name: 'Geral', count: all.length, channels: all }];
+    for (const b of BRANDS) {
+      const chs = all.filter((c) =>
+        b.kw.some((k) => c.title.toLowerCase().includes(k)),
+      );
+      if (chs.length) menu.push({ name: b.name, count: chs.length, channels: chs });
+    }
+    return menu;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
@@ -90,9 +88,9 @@ export function TVPage() {
         <span className="text-sm text-muted">· {data?.total} canais</span>
       </div>
 
-      {/* Menu de provedores / categorias — quebra em linhas (mostra todos) */}
+      {/* Menu enxuto: Geral + atalhos por provedor (quebra em linhas) */}
       <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-        Provedores e categorias
+        Geral e provedores
       </div>
       <div className="mb-6 flex flex-wrap gap-2">
         {groups.map((g) => (
