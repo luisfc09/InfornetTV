@@ -128,7 +128,11 @@ export function ContentDetail() {
             ← Voltar
           </button>
           <HLSPlayer
-            src={playback.playback.url}
+            src={
+              playback.playback.url.startsWith('http')
+                ? playback.playback.url
+                : `${BASE_URL}${playback.playback.url}` /* proxy: path → origem do backend */
+            }
             drm={playback.playback.drm}
             type={playback.playback.type}
             startAt={playback.resumePositionSeconds}

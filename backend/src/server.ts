@@ -16,6 +16,7 @@ import adminDudaRoutes from './routes/adminDuda.routes.js';
 import watchRoutes from './routes/watch.routes.js';
 import webhooksRoutes from './routes/webhooks.routes.js';
 import contentRoutes from './routes/content.routes.js';
+import streamRoutes from './routes/stream.routes.js';
 import {
   adminAuthMiddleware,
   requirePermission,
@@ -54,6 +55,9 @@ app.use('/api/admin/duda', adminDudaRoutes);
 
 // Rotas de autenticação (usuários do app)
 app.use('/api/auth', authRoutes);
+
+// Proxy de stream (sem requireAuth — token assinado é a credencial)
+app.use('/api/stream', streamRoutes);
 
 // Consumo do assinante: POST /api/watch/progress + GET /api/recommendations
 app.use('/api', watchRoutes);

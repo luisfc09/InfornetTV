@@ -9,6 +9,7 @@ import { Router, Request, Response } from 'express';
 import { query } from '../database/db.js';
 import { getProvider } from '../adapters/registry.js';
 import { ProviderIntegrationService } from '../services/ProviderIntegrationService.js';
+import { signStreamUrl } from '../lib/streamToken.js';
 
 const router = Router();
 const integration = new ProviderIntegrationService();
@@ -114,6 +115,7 @@ router.get('/:id/play', async (req: Request, res: Response) => {
     const ext = c.stream_url || 'mp4';
     let streamUrl: string;
     let streamType: 'hls' | 'mp4' = 'hls';
+    let isXtream = false;
     try {
       // Provider real (Xtream): URL montada no backend com as credenciais.
       const xtreamUrl = await integration.xtreamPlaybackUrl(
@@ -124,6 +126,7 @@ router.get('/:id/play', async (req: Request, res: Response) => {
       if (xtreamUrl) {
         streamUrl = xtreamUrl;
         streamType = ext === 'm3u8' ? 'hls' : 'mp4';
+        isXtream = true;
       } else {
         // Provider mock: stream de teste via adapter.
         const adapter = getProvider(c.provider);
@@ -139,6 +142,13 @@ router.get('/:id/play', async (req: Request, res: Response) => {
       // FAIL-CLOSED: nunca devolve URL de fallback
       return res.status(502).json({ success: false, error: 'Falha ao resolver stream' });
     }
+
+    // Esconde a URL real atrás do proxy quando há credenciais (Xtream) ou o
+    // upstream é http (mixed-content). Streams https abertos (mock) vão direto.
+    const needsProxy = isXtream || streamUrl.startsWith('http://');
+    const finalUrl = needsProxy
+      ? `/api/stream/${signStreamUrl(streamUrl, userId)}`
+      : streamUrl;
 
     // Posição de retomada (segundos já assistidos)
     const [h] = await query<{ duration_watched: number | null }>(
@@ -157,7 +167,7 @@ router.get('/:id/play', async (req: Request, res: Response) => {
         },
         playback: {
           type: streamType,
-          url: streamUrl,
+          url: finalUrl,
           drm: null,
         },
         resumePositionSeconds: h?.duration_watched ?? 0,
