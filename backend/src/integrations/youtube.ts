@@ -75,9 +75,40 @@ function extractLiveVideoId(html: string): string | null {
   return null;
 }
 
+// Tenta resolver pelo edge BR (Fly/gru). Retorna o videoId, ou null se o edge
+// confirmou que NÃO há live (autoridade BR), ou undefined se o edge falhou
+// (rede/timeout/sem config) — nesse caso o chamador faz fallback direto.
+async function resolveViaEdge(
+  channelId: string,
+): Promise<string | null | undefined> {
+  const edge = process.env.BR_EDGE_URL;
+  if (!edge) return undefined;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000); // cobre cold start do Fly
+    const res = await fetch(
+      `${edge.replace(/\/$/, '')}/yt/live?channel=${encodeURIComponent(channelId)}`,
+      {
+        headers: { 'x-edge-token': process.env.BR_EDGE_TOKEN || '' },
+        signal: ctrl.signal,
+      },
+    );
+    clearTimeout(t);
+    if (!res.ok) return undefined;
+    const j = (await res.json()) as { videoId?: string | null };
+    return j.videoId ?? null;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function resolveCurrentLiveVideoId(
   channelId: string,
 ): Promise<string | null> {
+  // 1) Edge BR é a autoridade p/ conteúdo geo-restrito ao Brasil.
+  const viaEdge = await resolveViaEdge(channelId);
+  if (viaEdge !== undefined) return viaEdge;
+  // 2) Sem edge (ou edge falhou) → resolve direto (funciona p/ conteúdo aberto).
   try {
     const res = await fetch(
       `https://www.youtube.com/channel/${channelId}/live`,

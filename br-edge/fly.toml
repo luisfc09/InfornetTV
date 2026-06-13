@@ -1,0 +1,29 @@
+# Fly.io — Infornet TV edge em região Brasil (São Paulo / gru).
+# Suba com:  fly launch --no-deploy   (cria o app)  e depois  fly deploy
+# A região PRECISA ser gru para o IP de saída ser brasileiro.
+
+app = "infornet-br-edge"
+primary_region = "gru"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # 0 = escala a zero quando ocioso (mais barato; +1-2s de cold start na 1ª
+  # chamada). Suba para 1 se quiser o edge sempre quente (sem cold start).
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

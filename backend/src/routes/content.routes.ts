@@ -174,8 +174,17 @@ router.get('/:id/play', async (req: Request, res: Response) => {
     // (com CORS) vai direto.
     const needsProxy =
       isXtream || streamUrl.startsWith('http://') || c.kind === 'live';
+    // Canais ao vivo passam pelo edge BR (Fly/gru) quando configurado, p/
+    // resolver geo-bloqueio/latência dos CDNs brasileiros a partir de um IP BR.
+    // VOD/Xtream seguem no backend US (poupa banda do edge). Como o rewrite do
+    // manifesto é relativo, depois da 1ª URL todos os segmentos ficam no edge.
+    // Sem BR_EDGE_URL, tudo continua no US (comportamento atual).
+    const proxyBase =
+      c.kind === 'live' && process.env.BR_EDGE_URL
+        ? process.env.BR_EDGE_URL.replace(/\/$/, '')
+        : '';
     const finalUrl = needsProxy
-      ? `/api/stream/${signStreamUrl(streamUrl, userId)}`
+      ? `${proxyBase}/api/stream/${signStreamUrl(streamUrl, userId)}`
       : streamUrl;
 
     // Posição de retomada (segundos já assistidos)
