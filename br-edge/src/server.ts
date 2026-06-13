@@ -19,7 +19,7 @@ import {
   verifyStreamToken,
   isBlockedHost,
 } from './streamToken.js';
-import { resolveCurrentLiveVideoId } from './youtube.js';
+import { resolveCurrentLiveVideoId, debugResolve } from './youtube.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
@@ -49,8 +49,12 @@ app.get('/yt/live', async (req: Request, res: Response) => {
   if (!/^[A-Za-z0-9_-]{10,40}$/.test(channel)) {
     return res.status(400).json({ error: 'invalid channel' });
   }
-  const videoId = await resolveCurrentLiveVideoId(channel);
   res.setHeader('Cache-Control', 'no-store');
+  // ?debug=1 → diagnóstico do que o YouTube devolve para o IP do edge.
+  if (req.query.debug === '1') {
+    return res.json({ region: REGION, ...(await debugResolve(channel) as object) });
+  }
+  const videoId = await resolveCurrentLiveVideoId(channel);
   res.json({ videoId, region: REGION });
 });
 
