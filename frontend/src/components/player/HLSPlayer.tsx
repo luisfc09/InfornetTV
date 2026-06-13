@@ -78,13 +78,46 @@ export function HLSPlayer({
     // Se o vídeo não começar a tocar em 12s (canal offline/geo-bloqueado,
     // manifesto vazio), mostra erro gracioso em vez de tela preta parada.
     const loadTimer = setTimeout(() => setError(true), 12000);
-    const onPlaying = () => clearTimeout(loadTimer);
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Em LIVE, re-sincroniza com a borda ao vivo quando trava (liveSyncPosition
+    // só existe em streams ao vivo); em VOD, apenas dá um "nudge" no play.
+    const recoverStall = () => {
+      if (
+        hls &&
+        typeof hls.liveSyncPosition === 'number' &&
+        isFinite(hls.liveSyncPosition)
+      ) {
+        try {
+          video.currentTime = hls.liveSyncPosition;
+        } catch {
+          /* ignora */
+        }
+      }
+      video.play().catch(() => {});
+    };
+    const onWaiting = () => {
+      if (stallTimer) return;
+      // travou: após 4s sem voltar, pula pra borda ao vivo / nudge
+      stallTimer = setTimeout(() => {
+        stallTimer = null;
+        recoverStall();
+      }, 4000);
+    };
+    const onPlaying = () => {
+      clearTimeout(loadTimer);
+      if (stallTimer) {
+        clearTimeout(stallTimer);
+        stallTimer = null;
+      }
+    };
 
     video.addEventListener('loadedmetadata', onLoadedMetadata);
     video.addEventListener('timeupdate', onTimeUpdate);
     video.addEventListener('pause', onPause);
     video.addEventListener('ended', onEndedEvt);
     video.addEventListener('playing', onPlaying);
+    video.addEventListener('waiting', onWaiting);
 
     // VOD direto (mp4/mkv): player nativo
     if (!isHls) {
@@ -93,7 +126,17 @@ export function HLSPlayer({
       // Safari / iOS: HLS nativo
       video.src = src;
     } else if (Hls.isSupported()) {
-      hls = new Hls({ enableWorker: true });
+      hls = new Hls({
+        enableWorker: true,
+        liveDurationInfinity: true, // live: duração infinita (não "termina")
+        liveSyncDurationCount: 3, // alvo de sync ~3 segmentos atrás da borda
+        maxBufferLength: 30, // buffer maior tolera latência do proxy
+        maxMaxBufferLength: 60,
+        nudgeMaxRetry: 10, // mais tentativas de "destravar"
+        fragLoadingMaxRetry: 6,
+        manifestLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4,
+      });
       hls.loadSource(src);
       hls.attachMedia(video);
       hls.on(Hls.Events.ERROR, (_evt, data) => {
@@ -120,11 +163,13 @@ export function HLSPlayer({
 
     return () => {
       clearTimeout(loadTimer);
+      if (stallTimer) clearTimeout(stallTimer);
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('pause', onPause);
       video.removeEventListener('ended', onEndedEvt);
       video.removeEventListener('playing', onPlaying);
+      video.removeEventListener('waiting', onWaiting);
       hls?.destroy();
     };
     // reloadKey força reinicialização no "Tentar de novo"
