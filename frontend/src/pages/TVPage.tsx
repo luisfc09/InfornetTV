@@ -25,7 +25,36 @@ export function TVPage() {
   const { data, loading, error } = useApi<TVData>('/api/tv');
   const [active, setActive] = useState<string | null>(null);
 
-  const groups = useMemo(() => data?.groups ?? [], [data]);
+  // Provedores nomeados (marcas) vêm primeiro; depois categorias por nº de canais.
+  const FEATURED = [
+    'CazéTV',
+    'Pluto TV',
+    'Globo',
+    'GloboNews',
+    'SporTV',
+    'SBT',
+    'Band',
+    'BandNews',
+    'Record',
+    'RecordNews',
+    'CNN Brasil',
+    'TV Cultura',
+    'RedeTV!',
+    'TV Gazeta',
+  ];
+  const groups = useMemo(() => {
+    const list = [...(data?.groups ?? [])];
+    return list.sort((a, b) => {
+      const ia = FEATURED.indexOf(a.name);
+      const ib = FEATURED.indexOf(b.name);
+      if (ia !== -1 || ib !== -1) {
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      }
+      return b.count - a.count;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
   useEffect(() => {
     if (!active && groups.length) setActive(groups[0].name);
   }, [groups, active]);
@@ -61,8 +90,11 @@ export function TVPage() {
         <span className="text-sm text-muted">· {data?.total} canais</span>
       </div>
 
-      {/* Menu de provedores / categorias */}
-      <div className="no-scrollbar mb-6 flex gap-2 overflow-x-auto pb-1">
+      {/* Menu de provedores / categorias — quebra em linhas (mostra todos) */}
+      <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+        Provedores e categorias
+      </div>
+      <div className="mb-6 flex flex-wrap gap-2">
         {groups.map((g) => (
           <button
             key={g.name}
