@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --loader ts-node/esm src/server.ts",
+    "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "migrate": "node --loader ts-node/esm src/database/migrate.ts",
-    "seed:demo": "node --loader ts-node/esm src/database/seedDemo.ts"
+    "migrate": "tsx src/database/migrate.ts",
+    "seed:demo": "tsx src/database/seedDemo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
@@ -31,6 +31,7 @@
     "@types/pg": "^8.10.9",
     "@types/ws": "^8.18.1",
     "ts-node": "^10.9.2",
+    "tsx": "^4.22.4",
     "typescript": "^5.3.3"
   }
 }
