@@ -3,6 +3,7 @@ import { Navigate, useParams, Link } from 'react-router-dom';
 import { BASE_URL } from '../hooks/useApi';
 import { useUserAuth } from '../contexts/UserAuthContext';
 import { HLSPlayer, type PlaybackDRM } from '../components/player/HLSPlayer';
+import { YouTubePlayer } from '../components/player/YouTubePlayer';
 import { onHeroError } from '../lib/images';
 import { Play, Loader } from 'lucide-react';
 
@@ -20,7 +21,11 @@ interface Detail {
 
 interface Playback {
   content: { id: string; title: string; poster_url: string; duration: number | null };
-  playback: { type: 'hls' | 'mp4'; url: string; drm: null | PlaybackDRM };
+  playback: {
+    type: 'hls' | 'mp4' | 'youtube';
+    url: string;
+    drm: null | PlaybackDRM;
+  };
   resumePositionSeconds: number;
 }
 
@@ -127,17 +132,21 @@ export function ContentDetail() {
           >
             ← Voltar
           </button>
-          <HLSPlayer
-            src={
-              playback.playback.url.startsWith('http')
-                ? playback.playback.url
-                : `${BASE_URL}${playback.playback.url}` /* proxy: path → origem do backend */
-            }
-            drm={playback.playback.drm}
-            type={playback.playback.type}
-            startAt={playback.resumePositionSeconds}
-            onProgress={saveProgress}
-          />
+          {playback.playback.type === 'youtube' ? (
+            <YouTubePlayer videoId={playback.playback.url} />
+          ) : (
+            <HLSPlayer
+              src={
+                playback.playback.url.startsWith('http')
+                  ? playback.playback.url
+                  : `${BASE_URL}${playback.playback.url}` /* proxy: path → origem do backend */
+              }
+              drm={playback.playback.drm}
+              type={playback.playback.type}
+              startAt={playback.resumePositionSeconds}
+              onProgress={saveProgress}
+            />
+          )}
           <h1 className="mt-4 text-xl font-bold">{detail.title}</h1>
         </div>
       </div>

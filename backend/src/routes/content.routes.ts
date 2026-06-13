@@ -115,8 +115,28 @@ router.get('/:id/play', async (req: Request, res: Response) => {
     // Extensão guardada na importação (Xtream); default mp4.
     const ext = c.stream_url || 'mp4';
     let streamUrl: string;
-    let streamType: 'hls' | 'mp4' = 'hls';
+    let streamType: 'hls' | 'mp4' | 'youtube' = 'hls';
     let isXtream = false;
+
+    // YouTube (ex.: CazéTV): resolve o video_id atual e retorna p/ iframe.
+    const ytId = await integration.youtubeVideoId(c.provider);
+    if (ytId) {
+      return res.json({
+        success: true,
+        data: {
+          content: {
+            id: c.id,
+            title: c.title,
+            poster_url: c.thumbnail_url ?? '',
+            duration: c.duration ?? null,
+          },
+          playback: { type: 'youtube', url: ytId, drm: null },
+          resumePositionSeconds: 0,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     try {
       // Provider real (Xtream): URL montada no backend com as credenciais.
       const xtreamUrl = await integration.xtreamPlaybackUrl(

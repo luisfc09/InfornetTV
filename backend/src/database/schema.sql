@@ -263,5 +263,6 @@ INSERT INTO streaming_providers (name, display_name, description, api_base_url, 
 VALUES
   ('CDN_TV', 'CDN TV Brasil', 'Plataforma CDN TV', 'https://api.cdntv.com.br', 1, true),
   ('WATCHTV', 'Watch TV', 'Plataforma Watch TV', 'https://api.watchtv.com.br', 2, true),
-  ('PARAMOUNT', 'Paramount+', 'Paramount Plus', 'https://api.paramount.com', 3, true)
+  ('PARAMOUNT', 'Paramount+', 'Paramount Plus', 'https://api.paramount.com', 3, true),
+  ('CAZETV', 'CazéTV', 'Canal ao vivo via YouTube', 'https://youtube.com', 4, true)
 ON CONFLICT DO NOTHING;

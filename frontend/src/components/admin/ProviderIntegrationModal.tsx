@@ -33,13 +33,15 @@ export default function ProviderIntegrationModal({
   onImported: () => void;
 }) {
   const { request } = useAdminApi();
-  const [type, setType] = useState<'mock' | 'xtream' | 'm3u'>(
-    (provider.integration_type as 'mock' | 'xtream' | 'm3u') ?? 'mock',
+  type IntType = 'mock' | 'xtream' | 'm3u' | 'youtube';
+  const [type, setType] = useState<IntType>(
+    (provider.integration_type as IntType) ?? 'mock',
   );
   const [baseUrl, setBaseUrl] = useState(provider.api_base_url ?? '');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [m3uUrl, setM3uUrl] = useState('');
+  const [videoId, setVideoId] = useState('');
   const [limit, setLimit] = useState(200);
 
   const [busy, setBusy] = useState<'' | 'save' | 'test' | 'import'>('');
@@ -61,7 +63,11 @@ export default function ProviderIntegrationModal({
           api_base_url: baseUrl,
           username: username || undefined,
           password: password || undefined,
-          config: { import_limit: limit, m3u_url: m3uUrl || undefined },
+          config: {
+            import_limit: limit,
+            m3u_url: m3uUrl || undefined,
+            video_id: videoId || undefined,
+          },
         }),
       });
       setPassword('');
@@ -135,13 +141,30 @@ export default function ProviderIntegrationModal({
           <select
             className={`mt-1 ${input}`}
             value={type}
-            onChange={(e) => setType(e.target.value as 'mock' | 'xtream' | 'm3u')}
+            onChange={(e) => setType(e.target.value as IntType)}
           >
             <option value="mock">Mock (stream de teste)</option>
             <option value="xtream">Xtream Codes / IPTV</option>
             <option value="m3u">Lista M3U (iptv-org / canais ao vivo)</option>
+            <option value="youtube">YouTube (live — ex.: CazéTV)</option>
           </select>
         </label>
+
+        {type === 'youtube' && (
+          <label className="mb-4 block text-xs font-medium text-gray-300">
+            video_id ou URL da live no YouTube
+            <input
+              className={`mt-1 ${input}`}
+              placeholder="https://youtube.com/watch?v=…  ou  o id de 11 caracteres"
+              value={videoId}
+              onChange={(e) => setVideoId(e.target.value)}
+            />
+            <span className="mt-1 block text-[11px] text-gray-500">
+              Atualize aqui sempre que uma nova transmissão começar. Salve e
+              clique em Importar para criar/atualizar o canal.
+            </span>
+          </label>
+        )}
 
         {type === 'm3u' && (
           <label className="mb-4 block text-xs font-medium text-gray-300">

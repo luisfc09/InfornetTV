@@ -5,6 +5,7 @@ import { query } from '../database/db.js';
 import { encrypt, decrypt } from '../lib/crypto.js';
 import { XtreamClient, XtreamCreds } from '../integrations/xtream.js';
 import { fetchM3U, brandOf, shortHash } from '../integrations/m3u.js';
+import { extractYoutubeId, youtubeOEmbed, youtubeThumb } from '../integrations/youtube.js';
 import { ContentRepository } from '../repositories/ContentRepository.js';
 import { Content } from '../types/index.js';
 
@@ -18,7 +19,7 @@ interface ProviderRow {
 }
 
 export interface SaveIntegrationInput {
-  type: 'mock' | 'xtream' | 'm3u';
+  type: 'mock' | 'xtream' | 'm3u' | 'youtube';
   api_base_url?: string;
   username?: string;
   password?: string;
@@ -49,7 +50,17 @@ export class ProviderIntegrationService {
   /** Salva os parâmetros de integração (credenciais criptografadas). */
   async save(id: string, input: SaveIntegrationInput) {
     const cur = await loadProvider(id);
-    const config = { ...(cur.config ?? {}), ...(input.config ?? {}), type: input.type };
+    const config: Record<string, unknown> = {
+      ...(cur.config ?? {}),
+      ...(input.config ?? {}),
+      type: input.type,
+    };
+
+    // YouTube: normaliza o video_id (aceita URL completa ou id puro).
+    if (input.type === 'youtube') {
+      const raw = String((input.config?.video_id ?? config.video_id) ?? '');
+      config.video_id = extractYoutubeId(raw) ?? '';
+    }
 
     // Mantém o segredo atual se o campo vier vazio (não sobrescreve com nada).
     const apiKey =
@@ -78,6 +89,22 @@ export class ProviderIntegrationService {
   async test(id: string) {
     const p = await loadProvider(id);
     const type = (p.config?.type ?? 'mock') as string;
+
+    if (type === 'youtube') {
+      const vid = p.config?.video_id as string | undefined;
+      if (!vid)
+        throw Object.assign(new Error('Informe o video_id ou a URL do YouTube.'), {
+          status: 400,
+        });
+      const o = await youtubeOEmbed(vid);
+      return {
+        ok: o.ok,
+        type: 'youtube',
+        message: o.ok
+          ? `Vídeo válido: ${o.title}`
+          : 'Vídeo não encontrado, privado ou removido.',
+      };
+    }
 
     if (type === 'm3u') {
       const url = p.config?.m3u_url as string | undefined;
@@ -140,6 +167,7 @@ export class ProviderIntegrationService {
     const type = (p.config?.type ?? 'mock') as string;
 
     if (type === 'm3u') return this.importM3U(p, limit);
+    if (type === 'youtube') return this.importYoutube(p);
 
     if (type !== 'xtream') {
       throw Object.assign(new Error('Configure a integração (Xtream/M3U) antes de importar.'), {
@@ -237,6 +265,53 @@ export class ProviderIntegrationService {
       total_no_painel: channels.length,
       truncado: channels.length > limit,
     };
+  }
+
+  /** Materializa UM canal ao vivo para o provider YouTube (ex.: CazéTV). */
+  private async importYoutube(p: ProviderRow) {
+    const vid = p.config?.video_id as string | undefined;
+    if (!vid) {
+      throw Object.assign(new Error('Informe o video_id/URL do YouTube antes de importar.'), {
+        status: 400,
+      });
+    }
+    // O playback resolve SEMPRE o video_id atual da config (atualizável sem
+    // reimportar). O canal guarda apenas o marcador 'youtube'.
+    const item: Content = {
+      id: `${p.name.toLowerCase()}_live`,
+      title: p.config?.channel_title
+        ? String(p.config.channel_title)
+        : p.name === 'CAZETV'
+          ? 'CazéTV'
+          : p.name,
+      description: 'Transmissão ao vivo pelo YouTube',
+      thumbnail_url: youtubeThumb(vid),
+      hero_image_url: youtubeThumb(vid),
+      genres: [p.name === 'CAZETV' ? 'CazéTV' : p.name],
+      release_year: 0,
+      provider: p.name as Content['provider'],
+      provider_content_id: 'live',
+      is_included: true,
+      maturity_rating: '',
+      cast: [],
+      stream_url: 'youtube', // marcador; o id real vem da config no /play
+      engagement_score: 0.9,
+      kind: 'live',
+    };
+    const imported = await repo.upsertMany([item]);
+    return { imported, total_no_painel: 1, truncado: false };
+  }
+
+  /** video_id atual do provider YouTube (null se não for youtube). */
+  async youtubeVideoId(providerName: string): Promise<string | null> {
+    const [p] = await query<ProviderRow>(
+      `SELECT id, name, api_base_url, api_key_encrypted, api_secret_encrypted, config
+       FROM streaming_providers WHERE name = $1`,
+      [providerName],
+    );
+    if (!p || (p.config?.type ?? 'mock') !== 'youtube') return null;
+    const vid = p.config?.video_id as string | undefined;
+    return vid || null;
   }
 
   /**

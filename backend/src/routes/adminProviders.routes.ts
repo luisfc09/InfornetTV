@@ -88,10 +88,11 @@ router.put(
   async (req: AdminRequest, res: Response) => {
     try {
       const { type, api_base_url, username, password, config } = req.body;
-      if (!['mock', 'xtream', 'm3u'].includes(type)) {
-        return res
-          .status(400)
-          .json({ success: false, error: "type deve ser 'mock', 'xtream' ou 'm3u'" });
+      if (!['mock', 'xtream', 'm3u', 'youtube'].includes(type)) {
+        return res.status(400).json({
+          success: false,
+          error: "type deve ser 'mock', 'xtream', 'm3u' ou 'youtube'",
+        });
       }
       const result = await integration.save(req.params.id, {
         type,
