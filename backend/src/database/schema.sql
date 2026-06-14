@@ -146,6 +146,11 @@ CREATE TABLE IF NOT EXISTS content (
 ALTER TABLE content ADD COLUMN IF NOT EXISTS kind VARCHAR DEFAULT 'movie';
 CREATE INDEX IF NOT EXISTS idx_content_kind ON content(kind);
 
+-- Health-check dos canais ao vivo: live_ok=false esconde do /api/tv (origem
+-- morta/fora do ar/bloqueada). NULL = ainda não checado (fail-open: aparece).
+ALTER TABLE content ADD COLUMN IF NOT EXISTS live_ok BOOLEAN;
+ALTER TABLE content ADD COLUMN IF NOT EXISTS live_checked_at TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS content_providers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   content_id VARCHAR REFERENCES content(id) ON DELETE CASCADE,

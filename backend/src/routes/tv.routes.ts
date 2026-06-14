@@ -17,9 +17,12 @@ interface ChannelRow {
 // GET /api/tv — { groups: [{ name, count, channels: [{id,title,logo}] }] }
 router.get('/', async (_req: Request, res: Response) => {
   try {
+    // live_ok IS DISTINCT FROM false → mostra OK e ainda-não-checados (null);
+    // esconde só os confirmados quebrados pelo health-check (origem morta/fora
+    // do ar/bloqueada). Fail-open: canal novo aparece até ser checado.
     const rows = await query<ChannelRow>(
       `SELECT id, title, thumbnail_url, genres
-       FROM content WHERE kind = 'live'
+       FROM content WHERE kind = 'live' AND live_ok IS DISTINCT FROM false
        ORDER BY title ASC`,
     );
 

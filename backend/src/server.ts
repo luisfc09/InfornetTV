@@ -18,6 +18,7 @@ import webhooksRoutes from './routes/webhooks.routes.js';
 import contentRoutes from './routes/content.routes.js';
 import streamRoutes from './routes/stream.routes.js';
 import tvRoutes from './routes/tv.routes.js';
+import { startLiveHealthLoop } from './services/liveHealth.js';
 import {
   adminAuthMiddleware,
   requirePermission,
@@ -213,4 +214,6 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📺 GET http://localhost:${PORT}/api/content`);
+  // Auto-cura: esconde canais ao vivo quebrados e reexibe quando voltam.
+  if (DB_ENABLED) startLiveHealthLoop();
 });

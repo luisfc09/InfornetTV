@@ -62,9 +62,18 @@ router.get('/:token', async (req: Request, res: Response) => {
     // Manifesto HLS → reescreve e devolve como texto
     if (isHlsUrl(upstream) || HLS_CT.test(ct)) {
       const text = await upstreamRes.text();
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.setHeader('Cache-Control', 'no-store');
-      return res.send(rewriteManifest(text, upstream, payload.uid));
+      // Só reescreve se for MESMO um manifesto. Origens podem devolver página
+      // de erro (HTML) numa URL .m3u8 — repassar evita gerar tokens-lixo.
+      if (text.trimStart().startsWith('#EXTM3U')) {
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+        res.setHeader('Cache-Control', 'no-store');
+        // Base = URL FINAL após redirects. Sem isso, variantes/segmentos
+        // relativos resolvem contra o redirecionador (ex.: jmp2.uk) → 400.
+        return res.send(rewriteManifest(text, upstreamRes.url, payload.uid));
+      }
+      res.status(upstreamRes.status || 502);
+      if (ct) res.setHeader('Content-Type', ct);
+      return res.send(text);
     }
 
     // Binário (segmento .ts, mp4 VOD) → repassa bytes + Range
