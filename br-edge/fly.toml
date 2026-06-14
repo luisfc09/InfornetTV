@@ -12,9 +12,11 @@ primary_region = 'gru'
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = 'stop'
+  # Sempre quente: sem cold-start (resolve YouTube instantâneo p/ o usuário e
+  # evita o health-check marcar canais bons como mortos por timeout de boot).
+  auto_stop_machines = 'off'
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
 
   [[http_service.checks]]
     interval = '30s'
