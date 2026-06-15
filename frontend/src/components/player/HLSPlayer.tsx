@@ -130,8 +130,10 @@ export function HLSPlayer({
         enableWorker: true,
         liveDurationInfinity: true, // live: duração infinita (não "termina")
         liveSyncDurationCount: 3, // alvo de sync ~3 segmentos atrás da borda
+        maxLiveSyncPlaybackRate: 1.5, // acelera de leve p/ alcançar a borda (anti-drift)
         maxBufferLength: 30, // buffer maior tolera latência do proxy
         maxMaxBufferLength: 60,
+        backBufferLength: 60, // limita memória em sessões longas
         nudgeMaxRetry: 10, // mais tentativas de "destravar"
         fragLoadingMaxRetry: 6,
         manifestLoadingMaxRetry: 4,
@@ -139,8 +141,25 @@ export function HLSPlayer({
       });
       hls.loadSource(src);
       hls.attachMedia(video);
+      // Sucesso ao bufferizar um fragmento zera o contador: só penaliza falhas
+      // de rede CONSECUTIVAS. (Antes era cumulativo no vida toda → após 3 blips
+      // num live longo o player morria — canal "trava" em sessões prolongadas.)
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        netRetries = 0;
+      });
       hls.on(Hls.Events.ERROR, (_evt, data) => {
-        if (!data.fatal || !hls) return;
+        if (!hls) return;
+        // Stall de buffer (ex.: descontinuidade/anúncio em canais como JP):
+        // recupera sem destruir — pula buraco / re-sincroniza com a borda.
+        if (
+          data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR ||
+          data.details === Hls.ErrorDetails.BUFFER_SEEK_OVER_HOLE ||
+          data.details === Hls.ErrorDetails.BUFFER_NUDGE_ON_STALL
+        ) {
+          recoverStall();
+          return;
+        }
+        if (!data.fatal) return;
         if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
           if (netRetries < 3) {
             netRetries += 1;
@@ -150,7 +169,7 @@ export function HLSPlayer({
             setError(true);
           }
         } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          hls.recoverMediaError();
+          hls.recoverMediaError(); // descontinuidade c/ troca de codec, etc.
         } else {
           hls.destroy();
           setError(true);
