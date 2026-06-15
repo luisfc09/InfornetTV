@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "tsx src/database/migrate.ts",
-    "seed:demo": "tsx src/database/seedDemo.ts"
+    "seed:demo": "tsx src/database/seedDemo.ts",
+    "seed:tv": "tsx src/database/seedTV.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

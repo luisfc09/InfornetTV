@@ -10,6 +10,7 @@ interface Channel {
   id: string;
   title: string;
   logo: string;
+  group?: string;
 }
 interface Group {
   name: string;
@@ -40,6 +41,9 @@ export function TVPage() {
     { name: 'Jovem Pan', kw: ['jovem pan', 'jp news'] },
     { name: 'Pluto TV', kw: ['pluto'] },
   ];
+  // Provedores "linear" (embed oficial), agrupados pelo campo `group` do backend
+  // (não por keyword de título). Aparecem como abas próprias quando têm canal.
+  const PROVIDERS = ['TV Brasil', 'TV Internacional', 'TV Lives'];
   const groups = useMemo(() => {
     const all = (data?.groups ?? []).flatMap((g) => g.channels);
     const menu: Group[] = [{ name: 'Geral', count: all.length, channels: all }];
@@ -48,6 +52,10 @@ export function TVPage() {
         b.kw.some((k) => c.title.toLowerCase().includes(k)),
       );
       if (chs.length) menu.push({ name: b.name, count: chs.length, channels: chs });
+    }
+    for (const p of PROVIDERS) {
+      const chs = all.filter((c) => c.group === p);
+      if (chs.length) menu.push({ name: p, count: chs.length, channels: chs });
     }
     return menu;
     // eslint-disable-next-line react-hooks/exhaustive-deps

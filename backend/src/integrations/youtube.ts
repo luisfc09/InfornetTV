@@ -155,3 +155,22 @@ export async function resolveChannelId(input: string): Promise<string | null> {
     return null;
   }
 }
+
+// Resolve a reprodução de um canal YouTube a partir do seu source_ref (modelo
+// genérico, usado por TODOS os canais youtube — CazéTV, TV Senado, NASA…):
+//   - videoId fixo (11 chars)        → mode 'video' (live/vídeo específico)
+//   - channelId (UC…) / @handle / URL → resolve a LIVE atual → video|offline
+// Em offline devolve o channelId (UC…) p/ o player oferecer o link /live.
+export async function youtubeLiveFromRef(
+  ref: string,
+): Promise<{ mode: 'video' | 'offline'; id: string }> {
+  const r = (ref ?? '').trim();
+  // videoId direto (11 chars e NÃO um channelId UC…)
+  if (/^[A-Za-z0-9_-]{11}$/.test(r) && !r.startsWith('UC')) {
+    return { mode: 'video', id: r };
+  }
+  const channelId = r.startsWith('UC') ? r : await resolveChannelId(r);
+  if (!channelId) return { mode: 'offline', id: r };
+  const liveId = await resolveCurrentLiveVideoId(channelId);
+  return liveId ? { mode: 'video', id: liveId } : { mode: 'offline', id: channelId };
+}

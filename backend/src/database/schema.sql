@@ -151,6 +151,14 @@ CREATE INDEX IF NOT EXISTS idx_content_kind ON content(kind);
 ALTER TABLE content ADD COLUMN IF NOT EXISTS live_ok BOOLEAN;
 ALTER TABLE content ADD COLUMN IF NOT EXISTS live_checked_at TIMESTAMPTZ;
 
+-- Origem do canal ao vivo: 'youtube' (embed oficial, ex.: CazéTV/TV Senado/NASA)
+-- ou 'hls' (manifesto via proxy). source_ref guarda o channelId/@handle/videoId
+-- (youtube) ou a URL do manifesto (hls). Canais 'youtube' NÃO são sondados pelo
+-- health-check (não têm como "morrer" no probe HLS) e nunca passam pelo proxy.
+ALTER TABLE content ADD COLUMN IF NOT EXISTS source_type TEXT
+  CHECK (source_type IN ('youtube', 'hls'));
+ALTER TABLE content ADD COLUMN IF NOT EXISTS source_ref TEXT;
+
 CREATE TABLE IF NOT EXISTS content_providers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   content_id VARCHAR REFERENCES content(id) ON DELETE CASCADE,

@@ -14,16 +14,27 @@ interface ChannelRow {
   genres: string[] | null;
 }
 
-// GET /api/tv — { groups: [{ name, count, channels: [{id,title,logo}] }] }
+// GET /api/tv — { groups: [{ name, count, channels: [{id,title,logo,group}] }] }
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    // live_ok IS DISTINCT FROM false → mostra OK e ainda-não-checados (null);
-    // esconde só os confirmados quebrados pelo health-check (origem morta/fora
-    // do ar/bloqueada). Fail-open: canal novo aparece até ser checado.
+    // Filtros:
+    //  - live_ok IS DISTINCT FROM false → esconde só os HLS confirmados mortos
+    //    pelo health-check (canais youtube nunca são sondados → sempre aparecem).
+    //  - sp.is_active → respeita o toggle do provider no admin.
+    //  - canais youtube com source_ref PLACEHOLDER ("CONFIRMAR…") ficam ocultos
+    //    até o admin preencher o canal oficial; acendem sozinhos ao configurar.
     const rows = await query<ChannelRow>(
-      `SELECT id, title, thumbnail_url, genres
-       FROM content WHERE kind = 'live' AND live_ok IS DISTINCT FROM false
-       ORDER BY title ASC`,
+      `SELECT c.id, c.title, c.thumbnail_url, c.genres
+       FROM content c
+       LEFT JOIN streaming_providers sp ON sp.name = c.provider
+       WHERE c.kind = 'live'
+         AND c.live_ok IS DISTINCT FROM false
+         AND sp.is_active IS DISTINCT FROM false
+         AND (
+           c.source_type IS DISTINCT FROM 'youtube'
+           OR c.source_ref ~ '^(UC[A-Za-z0-9_-]{22}|[A-Za-z0-9_-]{11}|@[A-Za-z0-9_.-]+|https?://.+)$'
+         )
+       ORDER BY c.title ASC`,
     );
 
     const map = new Map<string, { name: string; channels: unknown[] }>();
@@ -34,6 +45,7 @@ router.get('/', async (_req: Request, res: Response) => {
         id: r.id,
         title: r.title,
         logo: r.thumbnail_url ?? '',
+        group, // permite ao front montar abas por provedor (TV Brasil, etc.)
       });
     }
 

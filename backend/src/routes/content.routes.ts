@@ -9,6 +9,7 @@ import { Router, Request, Response } from 'express';
 import { query } from '../database/db.js';
 import { getProvider } from '../adapters/registry.js';
 import { ProviderIntegrationService } from '../services/ProviderIntegrationService.js';
+import { youtubeLiveFromRef } from '../integrations/youtube.js';
 import { signStreamUrl } from '../lib/streamToken.js';
 
 const router = Router();
@@ -29,6 +30,8 @@ interface ContentRow {
   is_included: boolean | null;
   stream_url: string | null;
   kind: string | null;
+  source_type: string | null;
+  source_ref: string | null;
   sp_active: boolean | null;
   sp_priority: number | null;
 }
@@ -39,6 +42,7 @@ async function loadContent(id: string): Promise<ContentRow | null> {
     `SELECT c.id, c.title, c.description, c.thumbnail_url, c.hero_image_url,
             c.release_year, c.genres, c.duration, c.seasons,
             c.provider, c.provider_content_id, c.is_included, c.stream_url, c.kind,
+            c.source_type, c.source_ref,
             sp.is_active AS sp_active, sp.priority AS sp_priority
      FROM content c
      LEFT JOIN streaming_providers sp ON sp.name = c.provider
@@ -118,8 +122,14 @@ router.get('/:id/play', async (req: Request, res: Response) => {
     let streamType: 'hls' | 'mp4' | 'youtube' = 'hls';
     let isXtream = false;
 
-    // YouTube (ex.: CazéTV): canal (live automática) ou video_id → iframe.
-    const yt = await integration.youtubePlayback(c.provider);
+    // YouTube (CazéTV, TV Senado, NASA…): resolve por source_ref (modelo
+    // genérico). Fallback: provider config (CazéTV legado, sem source_ref).
+    const isYoutube = c.source_type === 'youtube' || c.stream_url === 'youtube';
+    const yt = isYoutube
+      ? c.source_ref
+        ? await youtubeLiveFromRef(c.source_ref)
+        : await integration.youtubePlayback(c.provider)
+      : null;
     if (yt) {
       return res.json({
         success: true,
