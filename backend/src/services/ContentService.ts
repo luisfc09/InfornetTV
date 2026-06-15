@@ -23,12 +23,10 @@ export class ContentService {
 
   /** True quando há banco configurado E já populado — então as leituras vêm do DB. */
   private async useDb(): Promise<boolean> {
-    if (!DB_ENABLED) return false;
-    try {
-      return (await this.repo.count()) > 0;
-    } catch {
-      return false;
-    }
+    // DB configurado = fonte de verdade, MESMO vazio (catálogo vazio → vazio).
+    // O fallback mock (fetchFromProviders) só vale no modo sem banco (dev). Antes
+    // isto era `count() > 0`, então esvaziar o catálogo ressuscitava itens mock.
+    return DB_ENABLED;
   }
 
   /** Busca o catálogo de todos os providers (fonte de verdade externa). */
